@@ -530,6 +530,7 @@ class MyApp extends StatelessWidget {
               propertyId: args['propertyId'] as int,
               propertyTitle: args['propertyTitle'] as String,
               propertyPrice: args['propertyPrice'] as int,
+              propertyImageUrl: args['propertyImageUrl'] as String?,
             ),
           );
         }

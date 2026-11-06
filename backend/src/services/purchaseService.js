@@ -19,6 +19,17 @@ async function ensureMidtransSchema() {
       `);
       console.log('[Migration] Midtrans columns added to property_purchases');
     }
+    await pool.query(`
+      UPDATE property_purchases
+      SET midtrans_qr_url = NULL
+      WHERE midtrans_qr_url IS NOT NULL
+        AND (
+          midtrans_qr_url LIKE '%qrserver.com%'
+          OR midtrans_qr_url LIKE '%FALLBACK%'
+          OR midtrans_qr_url LIKE '%SANDBOX-TX%'
+          OR midtrans_qr_url LIKE '%MOCK%'
+        )
+    `);
     schemaEnsured = true;
   } catch (err) {
     console.warn('[Migration Warning] ensureMidtransSchema:', err.message);

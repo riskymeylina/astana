@@ -18,11 +18,13 @@ class PurchaseFormPage extends StatefulWidget {
     required this.propertyId,
     required this.propertyTitle,
     required this.propertyPrice,
+    this.propertyImageUrl,
   });
 
   final int propertyId;
   final String propertyTitle;
   final int propertyPrice;
+  final String? propertyImageUrl;
 
   @override
   State<PurchaseFormPage> createState() => _PurchaseFormPageState();
@@ -101,13 +103,10 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
         final parts = <String>[
           if (profile.address.addressLine.isNotEmpty)
             profile.address.addressLine,
-          if (profile.address.district.isNotEmpty)
-            profile.address.district,
+          if (profile.address.district.isNotEmpty) profile.address.district,
           if (profile.address.city.isNotEmpty) profile.address.city,
-          if (profile.address.province.isNotEmpty)
-            profile.address.province,
-          if (profile.address.postalCode.isNotEmpty)
-            profile.address.postalCode,
+          if (profile.address.province.isNotEmpty) profile.address.province,
+          if (profile.address.postalCode.isNotEmpty) profile.address.postalCode,
         ];
         _buyerAddressController.text = parts.join(', ');
       }
@@ -120,6 +119,8 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+
     final name = _buyerNameController.text.trim();
     final phone = _buyerPhoneController.text.trim();
     final address = _buyerAddressController.text.trim();
@@ -132,14 +133,22 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
 
     setState(() => _isSubmitting = true);
 
-    final response = await _purchaseService.createPurchase(
-      propertyId: widget.propertyId,
-      paymentMethod: _selectedPaymentMethod,
-      buyerName: name,
-      buyerPhone: phone.isEmpty ? null : phone,
-      buyerAddress: address.isEmpty ? null : address,
-      notes: notes.isEmpty ? null : notes,
-    );
+    late final ApiResponse response;
+    try {
+      response = await _purchaseService.createPurchase(
+        propertyId: widget.propertyId,
+        paymentMethod: _selectedPaymentMethod,
+        buyerName: name,
+        buyerPhone: phone.isEmpty ? null : phone,
+        buyerAddress: address.isEmpty ? null : address,
+        notes: notes.isEmpty ? null : notes,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showMessage('Gagal membuat pesanan: $error');
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
@@ -154,7 +163,12 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
         arguments: order.id,
       );
     } else {
-      _showMessage(_purchaseService.parseMessage(response.body));
+      final message = _purchaseService.parseMessage(response.body);
+      debugPrint(
+        '[PURCHASE_DEBUG] Gagal membuat pesanan QRIS: '
+        '${response.statusCode} $message',
+      );
+      _showMessage(message);
     }
   }
 
@@ -317,9 +331,12 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null || !messenger.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    });
   }
 
   @override
@@ -345,72 +362,69 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
                 : SingleChildScrollView(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _PropertySummaryRow(
-                    title: widget.propertyTitle,
-                    price: total,
-                  ),
-                  const SizedBox(height: 22),
-                  _CheckoutSection(
-                    title: 'Metode Pembayaran',
-                    child: PaymentMethodSelector(
-                      selected: _selectedPaymentMethod,
-                      onChanged: (method) =>
-                          setState(() => _selectedPaymentMethod = method),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _CheckoutSection(
-                    title: 'Data Pemesan',
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        custom_form.FormField(
-                          controller: _buyerNameController,
-                          label: 'Nama Lengkap',
-                          hint: 'Masukkan nama sesuai KTP',
-                          isRequired: true,
-                          validator: _validateBuyerName,
-                          icon: Icons.person_outline_rounded,
-                          validateRealTime: true,
-                          textCapitalization: TextCapitalization.words,
+                        _PropertySummaryRow(
+                          title: widget.propertyTitle,
+                          price: total,
+                          imageUrl: widget.propertyImageUrl,
                         ),
-                        const SizedBox(height: PurchaseTheme.spacing16),
-                        custom_form.FormField(
-                          controller: _buyerPhoneController,
-                          label: 'Nomor WhatsApp',
-                          hint: '08xx xxxx xxxx',
-                          keyboardType: TextInputType.phone,
-                          validator: _validatePhone,
-                          icon: Icons.phone_outlined,
-                          validateRealTime: true,
-                          formatPhone: true,
+                        const SizedBox(height: 22),
+                        _CheckoutSection(
+                          title: 'Metode Pembayaran',
+                          child: PaymentMethodSelector(
+                            selected: _selectedPaymentMethod,
+                            onChanged: (method) =>
+                                setState(() => _selectedPaymentMethod = method),
+                          ),
                         ),
-                        const SizedBox(height: PurchaseTheme.spacing16),
-                        custom_form.FormField(
-                          controller: _buyerAddressController,
-                          label: 'Alamat Korespondensi',
-                          hint: 'Alamat lengkap untuk korespondensi',
-                          maxLength: 255,
-                          showCharacterCount: true,
-                          validateRealTime: false,
-                        ),
-                        const SizedBox(height: PurchaseTheme.spacing16),
-                        custom_form.FormField(
-                          controller: _notesController,
-                          label: 'Catatan Tambahan',
-                          hint: 'Informasi tambahan untuk tim marketing',
-                          maxLength: 500,
-                          showCharacterCount: true,
-                          validateRealTime: false,
+                        const SizedBox(height: 18),
+                        _CheckoutSection(
+                          title: 'Data Pemesan',
+                          child: Column(
+                            children: [
+                              custom_form.FormField(
+                                controller: _buyerNameController,
+                                label: 'Nama Lengkap',
+                                hint: 'Masukkan nama sesuai KTP',
+                                isRequired: true,
+                                validator: _validateBuyerName,
+                                icon: Icons.person_outline_rounded,
+                                validateRealTime: true,
+                                textCapitalization: TextCapitalization.words,
+                              ),
+                              const SizedBox(height: PurchaseTheme.spacing16),
+                              custom_form.FormField(
+                                controller: _buyerPhoneController,
+                                label: 'Nomor WhatsApp',
+                                hint: '08xx xxxx xxxx',
+                                keyboardType: TextInputType.phone,
+                                validator: _validatePhone,
+                                icon: Icons.phone_outlined,
+                                validateRealTime: true,
+                                formatPhone: true,
+                              ),
+                              const SizedBox(height: PurchaseTheme.spacing16),
+                              custom_form.FormField(
+                                controller: _buyerAddressController,
+                                label: 'Alamat Korespondensi',
+                                hint: 'Alamat lengkap untuk korespondensi',
+                                validateRealTime: false,
+                              ),
+                              const SizedBox(height: PurchaseTheme.spacing16),
+                              custom_form.FormField(
+                                controller: _notesController,
+                                label: 'Catatan Tambahan',
+                                hint: 'Informasi tambahan untuk tim marketing',
+                                validateRealTime: false,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -734,10 +748,15 @@ class _BuyerInfoRow extends StatelessWidget {
 }
 
 class _PropertySummaryRow extends StatelessWidget {
-  const _PropertySummaryRow({required this.title, required this.price});
+  const _PropertySummaryRow({
+    required this.title,
+    required this.price,
+    this.imageUrl,
+  });
 
   final String title;
   final String price;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -749,21 +768,18 @@ class _PropertySummaryRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFDD096), Color(0xFF8E4E16)],
-              ),
-            ),
-            child: const Icon(
-              Icons.home_work_rounded,
-              color: Colors.white,
-              size: 28,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 58,
+              height: 58,
+              child: imageUrl == null || imageUrl!.isEmpty
+                  ? _buildPlaceholder()
+                  : Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _buildPlaceholder(),
+                    ),
             ),
           ),
           const SizedBox(width: 13),
@@ -808,6 +824,23 @@ class _PropertySummaryRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFDD096), Color(0xFF8E4E16)],
+        ),
+      ),
+      child: const Icon(
+        Icons.home_work_rounded,
+        color: Colors.white,
+        size: 28,
       ),
     );
   }

@@ -1,5 +1,7 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../models/purchase_order_model.dart';
 import 'auth_service.dart';
 
@@ -22,7 +24,8 @@ class AdminPurchaseService {
       if (from != null && from.isNotEmpty) queryParams['from'] = from;
       if (to != null && to.isNotEmpty) queryParams['to'] = to;
 
-      final uri = Uri.parse('$_serverBaseUrl$_baseUrl').replace(queryParameters: queryParams);
+      final uri = Uri.parse('$_serverBaseUrl$_baseUrl')
+          .replace(queryParameters: queryParams);
 
       return await http
           .get(
@@ -34,10 +37,7 @@ class AdminPurchaseService {
           )
           .timeout(const Duration(seconds: 15));
     } catch (e) {
-      return http.Response(
-        jsonEncode({'error': e.toString()}),
-        500,
-      );
+      return http.Response(jsonEncode({'error': e.toString()}), 500);
     }
   }
 
@@ -56,10 +56,7 @@ class AdminPurchaseService {
           )
           .timeout(const Duration(seconds: 15));
     } catch (e) {
-      return http.Response(
-        jsonEncode({'error': e.toString()}),
-        500,
-      );
+      return http.Response(jsonEncode({'error': e.toString()}), 500);
     }
   }
 
@@ -79,10 +76,7 @@ class AdminPurchaseService {
           )
           .timeout(const Duration(seconds: 15));
     } catch (e) {
-      return http.Response(
-        jsonEncode({'error': e.toString()}),
-        500,
-      );
+      return http.Response(jsonEncode({'error': e.toString()}), 500);
     }
   }
 
@@ -105,10 +99,7 @@ class AdminPurchaseService {
           )
           .timeout(const Duration(seconds: 15));
     } catch (e) {
-      return http.Response(
-        jsonEncode({'error': e.toString()}),
-        500,
-      );
+      return http.Response(jsonEncode({'error': e.toString()}), 500);
     }
   }
 
@@ -116,8 +107,10 @@ class AdminPurchaseService {
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
       final purchases = json['purchases'] as List<dynamic>? ?? [];
-      return purchases.map((p) => PurchaseOrderModel.fromJson(p as Map<String, dynamic>)).toList();
-    } catch (e) {
+      return purchases
+          .map((p) => PurchaseOrderModel.fromJson(p as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
       return [];
     }
   }
@@ -128,7 +121,7 @@ class AdminPurchaseService {
       final purchase = json['purchase'] as Map<String, dynamic>?;
       if (purchase == null) return null;
       return PurchaseOrderModel.fromJson(purchase);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
@@ -137,7 +130,7 @@ class AdminPurchaseService {
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
       return json['message'] as String? ?? 'Operasi gagal';
-    } catch (e) {
+    } catch (_) {
       return 'Terjadi kesalahan';
     }
   }

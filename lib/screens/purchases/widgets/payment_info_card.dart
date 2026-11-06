@@ -53,16 +53,22 @@ class PaymentInfoCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isQris
                       ? const Color(0xFFE8F1FC)
-                      : (isCash ? const Color(0xFFE5F5EC) : const Color(0xFFFFF0D9)),
+                      : (isCash
+                            ? const Color(0xFFE5F5EC)
+                            : const Color(0xFFFFF0D9)),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   isQris
                       ? Icons.qr_code_scanner_rounded
-                      : (isCash ? Icons.payments_rounded : Icons.account_balance_wallet_rounded),
+                      : (isCash
+                            ? Icons.payments_rounded
+                            : Icons.account_balance_wallet_rounded),
                   color: isQris
                       ? const Color(0xFF1E5FAF)
-                      : (isCash ? const Color(0xFF1F7A45) : const Color(0xFF8E4E16)),
+                      : (isCash
+                            ? const Color(0xFF1F7A45)
+                            : const Color(0xFF8E4E16)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -106,8 +112,8 @@ class PaymentInfoCard extends StatelessWidget {
                 colors: isQris
                     ? [const Color(0xFF1E5FAF), const Color(0xFF2A78D0)]
                     : (isCash
-                        ? [const Color(0xFF1F7A45), const Color(0xFF2C9F5A)]
-                        : [const Color(0xFF1E2A5A), const Color(0xFF34427D)]),
+                          ? [const Color(0xFF1F7A45), const Color(0xFF2C9F5A)]
+                          : [const Color(0xFF1E2A5A), const Color(0xFF34427D)]),
               ),
               borderRadius: BorderRadius.circular(18),
             ),
@@ -117,7 +123,9 @@ class PaymentInfoCard extends StatelessWidget {
                 Text(
                   isQris
                       ? 'Total yang harus dibayar via QRIS'
-                      : (isCash ? 'Total yang harus dibayar tunai' : 'Total pembayaran'),
+                      : (isCash
+                            ? 'Total yang harus dibayar tunai'
+                            : 'Total pembayaran'),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -140,6 +148,65 @@ class PaymentInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (isQris) ...[
+            if ((order.midtransQrUrl ?? '').isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7FAFF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFD8E6F8)),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Pindai QRIS untuk membayar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E5FAF),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        order.midtransQrUrl!,
+                        width: compact ? 190 : 230,
+                        height: compact ? 190 : 230,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return SizedBox(
+                            width: compact ? 190 : 230,
+                            height: compact ? 190 : 230,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, _, _) => SizedBox(
+                          width: compact ? 190 : 230,
+                          height: compact ? 190 : 230,
+                          child: const Center(
+                            child: Text(
+                              'QRIS tidak dapat dimuat',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Gunakan aplikasi pembayaran yang mendukung QRIS.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6D7B8C)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             _PaymentInfoRow(
               icon: Icons.hub_rounded,
               label: 'Metode Pembayaran',
@@ -152,7 +219,9 @@ class PaymentInfoCard extends StatelessWidget {
                 value: order.midtransOrderId!,
                 trailing: TextButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: order.midtransOrderId!));
+                    Clipboard.setData(
+                      ClipboardData(text: order.midtransOrderId!),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Order ID disalin')),
                     );
@@ -167,13 +236,17 @@ class PaymentInfoCard extends StatelessWidget {
               value: order.isConfirmed
                   ? 'Lunas'
                   : (order.midtransPaymentStatus ?? 'Menunggu Pembayaran'),
-              valueColor: order.isConfirmed ? PurchaseTheme.success : const Color(0xFF1E5FAF),
+              valueColor: order.isConfirmed
+                  ? PurchaseTheme.success
+                  : const Color(0xFF1E5FAF),
             ),
             _PaymentInfoRow(
               icon: Icons.schedule_rounded,
               label: 'Batas Pembayaran',
               value: formatDate(order.paymentDueAt),
-              valueColor: order.isCancelled ? PurchaseTheme.error : const Color(0xFF9A6700),
+              valueColor: order.isCancelled
+                  ? PurchaseTheme.error
+                  : const Color(0xFF9A6700),
             ),
           ] else ...[
             const _PaymentInfoRow(
@@ -195,7 +268,9 @@ class PaymentInfoCard extends StatelessWidget {
               icon: Icons.schedule_rounded,
               label: 'Batas Pembayaran',
               value: formatDate(order.paymentDueAt),
-              valueColor: order.isCancelled ? PurchaseTheme.error : const Color(0xFF9A6700),
+              valueColor: order.isCancelled
+                  ? PurchaseTheme.error
+                  : const Color(0xFF9A6700),
             ),
           ],
         ],

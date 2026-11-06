@@ -62,7 +62,6 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,38 +104,33 @@ class _PropertyDetailContent extends StatelessWidget {
         .where((item) => item.imageUrl.trim().isNotEmpty)
         .toList();
 
-    final mappedFromApi = fromApi
-        .asMap()
-        .entries
-        .map(
-          (entry) {
-            String rawUrl = entry.value.imageUrl.trim();
-            if (rawUrl.startsWith('/uploads')) {
-              rawUrl = '${AppConfig.serverBaseUrl}$rawUrl';
-            }
-            if (rawUrl.contains(' ')) {
-              rawUrl = Uri.encodeFull(rawUrl);
-            }
+    final mappedFromApi = fromApi.asMap().entries.map((entry) {
+      String rawUrl = entry.value.imageUrl.trim();
+      if (rawUrl.startsWith('/uploads')) {
+        rawUrl = '${AppConfig.serverBaseUrl}$rawUrl';
+      }
+      if (rawUrl.contains(' ')) {
+        rawUrl = Uri.encodeFull(rawUrl);
+      }
 
-            final isNetwork = rawUrl.startsWith('http://') || rawUrl.startsWith('https://');
-            return _GalleryItem(
-              source: rawUrl,
-              assetPath: isNetwork
-                  ? null
-                  : _resolveGalleryAssetPath(
-                      entry.value.title,
-                      entry.value.subtitle,
-                      entry.key,
-                    ),
-              title: _resolveGalleryTitle(entry.value, entry.key),
-              subtitle: _resolveGallerySubtitle(entry.value),
-              details: entry.value.details.isNotEmpty
-                  ? entry.value.details
-                  : const ['Detail belum tersedia'],
-            );
-          },
-        )
-        .toList();
+      final isNetwork =
+          rawUrl.startsWith('http://') || rawUrl.startsWith('https://');
+      return _GalleryItem(
+        source: rawUrl,
+        assetPath: isNetwork
+            ? null
+            : _resolveGalleryAssetPath(
+                entry.value.title,
+                entry.value.subtitle,
+                entry.key,
+              ),
+        title: _resolveGalleryTitle(entry.value, entry.key),
+        subtitle: _resolveGallerySubtitle(entry.value),
+        details: entry.value.details.isNotEmpty
+            ? entry.value.details
+            : const ['Detail belum tersedia'],
+      );
+    }).toList();
 
     if (mappedFromApi.isNotEmpty) {
       return mappedFromApi;
@@ -180,7 +174,9 @@ class _PropertyDetailContent extends StatelessWidget {
                       ),
                     );
                   },
-                  backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  backgroundDecoration: const BoxDecoration(
+                    color: Colors.black,
+                  ),
                 ),
               ),
               Positioned(
@@ -236,7 +232,10 @@ class _PropertyDetailContent extends StatelessWidget {
     }
 
     // Try network image with fallback to local asset if available
-    final fallbackAsset = _resolveFallbackAsset(mainItem.source, mainItem.title);
+    final fallbackAsset = _resolveFallbackAsset(
+      mainItem.source,
+      mainItem.title,
+    );
 
     if (kIsWeb) {
       return Image.network(
@@ -326,7 +325,9 @@ class _PropertyDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = (AuthService().getSession()?['role'] ?? '').toString().toLowerCase();
+    final role = (AuthService().getSession()?['role'] ?? '')
+        .toString()
+        .toLowerCase();
     final isBuyer = role == UserRoles.pembeli;
 
     return Stack(
@@ -355,7 +356,9 @@ class _PropertyDetailContent extends StatelessWidget {
                             backgroundColor: Colors.black,
                             child: PhotoView(
                               imageProvider: mainItem.imageProvider,
-                              backgroundDecoration: const BoxDecoration(color: Colors.black),
+                              backgroundDecoration: const BoxDecoration(
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         );
@@ -482,14 +485,14 @@ class _PropertyDetailContent extends StatelessWidget {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemCount: _galleryItems.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(width: 12),
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
                           itemBuilder: (context, index) {
                             final galleryItem = _galleryItems[index];
 
                             return _GalleryThumbnail(
                               item: galleryItem,
-                              onTap: () => _openFullScreenGallery(context, index),
+                              onTap: () =>
+                                  _openFullScreenGallery(context, index),
                             );
                           },
                         ),
@@ -513,27 +516,38 @@ class _PropertyDetailContent extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: (property.status.toLowerCase() == 'sold' ||
-                              property.status.toLowerCase() == 'terjual' ||
-                              property.status.toLowerCase() == 'booking' ||
-                              property.status.toLowerCase() == 'sedang dibooking' ||
-                              property.status.toLowerCase() == 'archived')
+                  onPressed:
+                      (property.status.toLowerCase() == 'sold' ||
+                          property.status.toLowerCase() == 'terjual' ||
+                          property.status.toLowerCase() == 'booking' ||
+                          property.status.toLowerCase() == 'sedang dibooking' ||
+                          property.status.toLowerCase() == 'archived')
                       ? null
                       : () => _showPurchaseConfirmation(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5C1E04), // dark brown
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
-                      Icon(Icons.chat_bubble_outline_rounded, size: 20, color: Colors.white),
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Pesan Properti',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -625,7 +639,9 @@ class _PropertyDetailContent extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: CachedNetworkImage(
-                            imageUrl: property.gallery.isNotEmpty ? property.gallery.first.imageUrl : '',
+                            imageUrl: property.gallery.isNotEmpty
+                                ? property.gallery.first.imageUrl
+                                : '',
                             width: 54,
                             height: 54,
                             fit: BoxFit.cover,
@@ -757,10 +773,12 @@ class _PropertyDetailContent extends StatelessWidget {
         'propertyId': property.id,
         'propertyTitle': property.title,
         'propertyPrice': property.price,
+        'propertyImageUrl': property.gallery.isNotEmpty
+            ? property.gallery.first.imageUrl
+            : null,
       },
     );
   }
-
 }
 
 class _StatusChip extends StatelessWidget {
@@ -858,16 +876,16 @@ class _GalleryThumbnail extends StatelessWidget {
       imageWidget = Image.asset(
         item.assetPath!,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const Icon(
-          Icons.image_rounded,
-          color: Color(0xFF8B8277),
-        ),
+        errorBuilder: (_, _, _) =>
+            const Icon(Icons.image_rounded, color: Color(0xFF8B8277)),
       );
     } else {
       String? fallbackAsset;
       try {
         final uri = Uri.parse(item.source);
-        final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+        final filename = uri.pathSegments.isNotEmpty
+            ? uri.pathSegments.last
+            : '';
         if (filename.isNotEmpty) {
           fallbackAsset = 'assets/images/${Uri.decodeComponent(filename)}';
         }
@@ -882,10 +900,8 @@ class _GalleryThumbnail extends StatelessWidget {
               return Image.asset(
                 fallbackAsset,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.image_rounded,
-                  color: Color(0xFF8B8277),
-                ),
+                errorBuilder: (_, _, _) =>
+                    const Icon(Icons.image_rounded, color: Color(0xFF8B8277)),
               );
             }
             return const Icon(Icons.image_rounded, color: Color(0xFF8B8277));
@@ -910,10 +926,8 @@ class _GalleryThumbnail extends StatelessWidget {
               return Image.asset(
                 fallbackAsset,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.image_rounded,
-                  color: Color(0xFF8B8277),
-                ),
+                errorBuilder: (_, _, _) =>
+                    const Icon(Icons.image_rounded, color: Color(0xFF8B8277)),
               );
             }
             return const Icon(Icons.image_rounded, color: Color(0xFF8B8277));
@@ -1019,11 +1033,7 @@ extension _PropertyGalleryAssets on _PropertyDetailContent {
     return item.subtitle.isNotEmpty ? item.subtitle : 'Detail visual properti';
   }
 
-  String? _resolveGalleryAssetPath(
-    String title,
-    String subtitle,
-    int index,
-  ) {
+  String? _resolveGalleryAssetPath(String title, String subtitle, int index) {
     final normalized = '$title $subtitle'.toLowerCase();
 
     if (normalized.contains('tampak depan') ||
@@ -1061,7 +1071,6 @@ extension _PropertyGalleryAssets on _PropertyDetailContent {
       if (normalized.contains('1') || index == 2) {
         return 'assets/images/kamar tidur 1.jpg';
       }
-
 
       return 'assets/images/kamar tidur 1.jpg';
     }

@@ -124,6 +124,11 @@ function resolveAssetUrl(req, relPath) {
 
 function buildPurchasePayload(req, item) {
   const isQris = String(item.payment_method).toUpperCase().includes('QRIS');
+  const storedQrUrl = item.midtrans_qr_url || null;
+  const midtransQrUrl = storedQrUrl &&
+    midtransService.isOfficialQrUrl(storedQrUrl)
+    ? storedQrUrl
+    : null;
 
   return {
     id: item.id,
@@ -154,7 +159,7 @@ function buildPurchasePayload(req, item) {
     processedAt: item.processed_at,
     midtransOrderId: item.midtrans_order_id || null,
     midtransTransactionId: item.midtrans_transaction_id || null,
-    midtransQrUrl: item.midtrans_qr_url || null,
+    midtransQrUrl,
     midtransPaymentStatus: item.midtrans_payment_status || (isQris ? 'pending' : null),
     midtransExpiryTime: item.midtrans_expiry_time || null,
     createdAt: item.created_at,

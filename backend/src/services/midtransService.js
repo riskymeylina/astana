@@ -21,6 +21,22 @@ function getAuthHeader() {
   return `Basic ${token}`;
 }
 
+function isOfficialQrUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    const allowedHost = IS_PRODUCTION
+      ? 'api.midtrans.com'
+      : 'api.sandbox.midtrans.com';
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === allowedHost &&
+      /^\/v[24]\/qris\/[^/]+\/qr-code$/.test(url.pathname)
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
 /**
  * Buat transaksi QRIS melalui Midtrans Core API
  */
@@ -85,7 +101,11 @@ async function createQrisTransaction({
     let qrUrl = null;
     if (Array.isArray(data.actions)) {
       const qrAction = data.actions.find(
-        (a) => a.name === 'generate-qr-code' || a.name === 'qr-code',
+        (a) =>
+          (a.name === 'generate-qr-code-v2' ||
+            a.name === 'generate-qr-code' ||
+            a.name === 'qr-code') &&
+          isOfficialQrUrl(a.url),
       );
       if (qrAction) {
         qrUrl = qrAction.url;
@@ -181,6 +201,7 @@ module.exports = {
   createQrisTransaction,
   checkTransactionStatus,
   verifyWebhookSignature,
+  isOfficialQrUrl,
   MIDTRANS_CLIENT_KEY,
   IS_PRODUCTION,
 };
