@@ -9,6 +9,7 @@ const VALID_TRANSACTION_STATUSES = new Set([
   'rejected',
   'cancelled',
 ]);
+const VALID_HISTORICAL_SALE_STATUSES = new Set(['completed', 'pending', 'cancelled']);
 
 function createError(message, statusCode) {
   const error = new Error(message);
@@ -70,10 +71,20 @@ function normalizeStatus(value) {
   return status;
 }
 
+function normalizeHistoricalSaleStatus(value) {
+  const status = String(value || '').trim().toLowerCase();
+  if (!status) return null;
+  if (!VALID_HISTORICAL_SALE_STATUSES.has(status)) {
+    throw createError('Status penjualan historis tidak valid', 400);
+  }
+  return status;
+}
+
 function buildPurchasePayload(req, item) {
   return {
     id: item.id,
     buyerUserId: item.buyer_user_id,
+    buyerRecordId: item.buyer_record_id,
     propertyId: item.property_id,
     propertyTitle: item.property_title,
     propertyLocation: item.property_location,
@@ -102,6 +113,32 @@ function buildPurchasePayload(req, item) {
   };
 }
 
+function buildHistoricalSalePayload(req, sale) {
+  return {
+    id: sale.id_historical_sale,
+    buyerRecordId: sale.buyer_record_id,
+    propertyId: sale.property_id,
+    propertyNameSnapshot: sale.property_name_snapshot,
+    transactionDate: sale.transaction_date,
+    transactionValue: sale.transaction_value,
+    paymentMethod: sale.payment_method,
+    status: sale.status,
+    notes: sale.notes,
+    dataLabel: sale.data_label,
+    recordedByUserId: sale.recorded_by_user_id,
+    recordedAt: sale.recorded_at,
+    updatedAt: sale.updated_at,
+    buyerFullName: sale.buyer_full_name,
+    buyerPhone: sale.buyer_phone,
+    buyerDataSource: sale.buyer_data_source,
+    recordedByName: sale.recorded_by_name,
+    propertyTitleCurrent: sale.property_title_current,
+    propertyLocation: sale.property_location,
+    propertyStatusCurrent: sale.property_status_current,
+    propertyThumbnailUrl: resolveAssetUrl(req, sale.property_thumbnail_url),
+  };
+}
+
 async function getGlobalReport(req, res, next) {
   try {
     const report = await reportService.getGlobalReport(parseDateFilters(req.query));
@@ -113,7 +150,11 @@ async function getGlobalReport(req, res, next) {
 
 async function getSalesReport(req, res, next) {
   try {
-    const report = await reportService.getSalesReport(parseDateFilters(req.query));
+    const status = req.query.status ? normalizeStatus(req.query.status) : null;
+    const report = await reportService.getSalesReport({
+      status,
+      ...parseDateFilters(req.query),
+    });
     return res.status(200).json({
       message: 'Laporan penjualan berhasil diambil',
       totalRevenue: report.totalRevenue,
@@ -148,13 +189,22 @@ async function getAvailabilityReport(req, res, next) {
 async function getTransactions(req, res, next) {
   try {
     const status = normalizeStatus(req.query.status);
-    const transactions = await reportService.getTransactions({
-      status,
-      ...parseDateFilters(req.query),
-    });
+    const historicalStatus = normalizeHistoricalSaleStatus(req.query.historicalStatus);
+    const dateFilters = parseDateFilters(req.query);
+    const [transactions, historicalSales] = await Promise.all([
+      reportService.getTransactions({
+        status,
+        ...dateFilters,
+      }),
+      reportService.getHistoricalSalesReport({
+        status: historicalStatus,
+        ...dateFilters,
+      }),
+    ]);
     return res.status(200).json({
       message: 'Data transaksi berhasil diambil',
       transactions: transactions.map((tx) => buildPurchasePayload(req, tx)),
+      historicalSales: historicalSales.map((sale) => buildHistoricalSalePayload(req, sale)),
     });
   } catch (error) {
     return next(error);

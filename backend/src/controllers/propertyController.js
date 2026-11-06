@@ -230,6 +230,30 @@ async function deleteAdminProperty(req, res, next) {
   }
 }
 
+async function updatePropertyStatus(req, res, next) {
+  try {
+    const propertyId = validatePropertyId(req.params.id);
+    const existing = await propertyService.findPropertyById(propertyId);
+    if (!existing) {
+      throw createError('Properti tidak ditemukan', 404);
+    }
+
+    const { status } = req.body;
+    if (!status || !['Tersedia', 'Sedang Dibooking', 'Terjual'].includes(status)) {
+      throw createError('Status tidak valid. Pilih: Tersedia, Sedang Dibooking, Terjual', 400);
+    }
+
+    const updated = await propertyService.updatePropertyStatus(propertyId, status);
+
+    return res.status(200).json({
+      message: 'Status properti berhasil diperbarui',
+      property: buildPropertyPayload(req, updated || { ...existing, status }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getPropertyDetail(req, res, next) {
   try {
     const propertyId = validatePropertyId(req.params.id);

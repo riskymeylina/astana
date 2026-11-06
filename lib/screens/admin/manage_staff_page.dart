@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/auth_service.dart';
 import '../../../services/admin_user_service.dart';
 import '../../../models/admin_models.dart';
 import '../../../widgets/braga_page_header.dart';
@@ -24,7 +23,6 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
   int _currentPage = 1;
   int _itemsPerPage = 10;
 
-  static const _amber = Color(0xFFFDD096);
   static const _border = Color(0xFFE7CCAE);
   static const _brown = Color(0xFF7A4F2D);
 
@@ -117,8 +115,18 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     try {
       final dt = DateTime.parse(dateStr).toLocal();
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agt',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
       ];
       final day = dt.day.toString().padLeft(2, '0');
       final month = months[dt.month - 1];
@@ -135,7 +143,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFFFFF8F0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Akun Staf', style: TextStyle(color: _brown, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Hapus Akun Staf',
+          style: TextStyle(color: _brown, fontWeight: FontWeight.bold),
+        ),
         content: const Text('Apakah Anda yakin ingin menghapus akun staf ini?'),
         actions: [
           TextButton(
@@ -157,7 +168,9 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(res.statusCode == 200 ? 'Akun staf berhasil dihapus' : msg),
+          content: Text(
+            res.statusCode == 200 ? 'Akun staf berhasil dihapus' : msg,
+          ),
           backgroundColor: res.statusCode == 200 ? _brown : Colors.red,
         ),
       );
@@ -196,7 +209,8 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Nama wajib diisi' : null,
+                  validator: (v) =>
+                      (v?.trim().isEmpty ?? true) ? 'Nama wajib diisi' : null,
                 ),
                 TextFormField(
                   controller: emailController,
@@ -222,7 +236,9 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Nomor telepon wajib diisi' : null,
+                  validator: (v) => (v?.trim().isEmpty ?? true)
+                      ? 'Nomor telepon wajib diisi'
+                      : null,
                 ),
                 TextFormField(
                   controller: passwordController,
@@ -264,8 +280,14 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(res.statusCode == 201 ? 'Akun staf berhasil ditambahkan' : msg),
-                    backgroundColor: res.statusCode == 201 ? _brown : Colors.red,
+                    content: Text(
+                      res.statusCode == 201
+                          ? 'Akun staf berhasil ditambahkan'
+                          : msg,
+                    ),
+                    backgroundColor: res.statusCode == 201
+                        ? _brown
+                        : Colors.red,
                   ),
                 );
                 _loadStaff();
@@ -290,7 +312,9 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFFFFF8F0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Text(
             'Ubah Data Staf',
             style: TextStyle(color: _brown, fontWeight: FontWeight.bold),
@@ -310,7 +334,8 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       filled: true,
                       fillColor: Colors.white,
                     ),
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Nama wajib diisi' : null,
+                    validator: (v) =>
+                        (v?.trim().isEmpty ?? true) ? 'Nama wajib diisi' : null,
                   ),
                   TextFormField(
                     controller: emailController,
@@ -336,7 +361,9 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       filled: true,
                       fillColor: Colors.white,
                     ),
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Nomor telepon wajib diisi' : null,
+                    validator: (v) => (v?.trim().isEmpty ?? true)
+                        ? 'Nomor telepon wajib diisi'
+                        : null,
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -344,7 +371,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     children: [
                       const Text(
                         'Status Akun Aktif',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: _brown),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _brown,
+                        ),
                       ),
                       Switch(
                         value: isActive,
@@ -383,8 +413,14 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(res.statusCode == 200 ? 'Data staf berhasil diubah' : msg),
-                      backgroundColor: res.statusCode == 200 ? _brown : Colors.red,
+                      content: Text(
+                        res.statusCode == 200
+                            ? 'Data staf berhasil diubah'
+                            : msg,
+                      ),
+                      backgroundColor: res.statusCode == 200
+                          ? _brown
+                          : Colors.red,
                     ),
                   );
                   _loadStaff();
@@ -402,7 +438,8 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
   Widget build(BuildContext context) {
     final query = _searchController.text.trim().toLowerCase();
     final filteredUsers = _users.where((user) {
-      final matchesSearch = user.name.toLowerCase().contains(query) ||
+      final matchesSearch =
+          user.name.toLowerCase().contains(query) ||
           user.email.toLowerCase().contains(query) ||
           (user.phone != null && user.phone!.toLowerCase().contains(query));
 
@@ -434,13 +471,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _buildError()
-                    : Column(
-                        children: [
-                          _buildStatsCards(_users),
-                          Expanded(child: _buildMainPanel(filteredUsers)),
-                        ],
-                      ),
+                ? _buildError()
+                : Column(
+                    children: [Expanded(child: _buildMainPanel(filteredUsers))],
+                  ),
           ),
         ],
       ),
@@ -451,7 +485,13 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     final total = allUsers.length;
     final active = allUsers.where((u) => u.isActive).length;
     final inactive = allUsers.where((u) => !u.isActive).length;
-    final adminCount = allUsers.where((u) => u.role.toLowerCase() == 'admin' || _getStaffRoleLabel(u.email, u.role) == 'Admin').length;
+    final adminCount = allUsers
+        .where(
+          (u) =>
+              u.role.toLowerCase() == 'admin' ||
+              _getStaffRoleLabel(u.email, u.role) == 'Admin',
+        )
+        .length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
@@ -461,30 +501,94 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
           return isDesktop
               ? Row(
                   children: [
-                    Expanded(child: _buildStatCard('Total Staf', '$total', 'Seluruh staf terdaftar', Icons.people_rounded, const Color(0xFF7A4F2D))),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Staf',
+                        '$total',
+                        'Seluruh staf terdaftar',
+                        Icons.people_rounded,
+                        const Color(0xFF7A4F2D),
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildStatCard('Staf Aktif', '$active', 'Sedang aktif bekerja', Icons.check_circle_outline_rounded, Colors.green)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Staf Aktif',
+                        '$active',
+                        'Sedang aktif bekerja',
+                        Icons.check_circle_outline_rounded,
+                        Colors.green,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildStatCard('Staf Nonaktif', '$inactive', 'Tidak aktif sementara', Icons.pause_circle_outline_rounded, Colors.orange)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Staf Nonaktif',
+                        '$inactive',
+                        'Tidak aktif sementara',
+                        Icons.pause_circle_outline_rounded,
+                        Colors.orange,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildStatCard('Staf Admin', '$adminCount', 'Akses penuh sistem', Icons.admin_panel_settings_rounded, Colors.deepPurple)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Staf Admin',
+                        '$adminCount',
+                        'Akses penuh sistem',
+                        Icons.admin_panel_settings_rounded,
+                        Colors.deepPurple,
+                      ),
+                    ),
                   ],
                 )
               : Column(
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _buildStatCard('Total Staf', '$total', 'Seluruh staf terdaftar', Icons.people_rounded, const Color(0xFF7A4F2D))),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Total Staf',
+                            '$total',
+                            'Seluruh staf terdaftar',
+                            Icons.people_rounded,
+                            const Color(0xFF7A4F2D),
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildStatCard('Staf Aktif', '$active', 'Sedang aktif bekerja', Icons.check_circle_outline_rounded, Colors.green)),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Staf Aktif',
+                            '$active',
+                            'Sedang aktif bekerja',
+                            Icons.check_circle_outline_rounded,
+                            Colors.green,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _buildStatCard('Staf Nonaktif', '$inactive', 'Tidak aktif sementara', Icons.pause_circle_outline_rounded, Colors.orange)),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Staf Nonaktif',
+                            '$inactive',
+                            'Tidak aktif sementara',
+                            Icons.pause_circle_outline_rounded,
+                            Colors.orange,
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildStatCard('Staf Admin', '$adminCount', 'Akses penuh sistem', Icons.admin_panel_settings_rounded, Colors.deepPurple)),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Staf Admin',
+                            '$adminCount',
+                            'Akses penuh sistem',
+                            Icons.admin_panel_settings_rounded,
+                            Colors.deepPurple,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -494,7 +598,13 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, String subtitle, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -543,10 +653,7 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),
@@ -558,24 +665,85 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
 
   Widget _buildMainPanel(List<AdminUserModel> filteredUsers) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      margin: const EdgeInsets.fromLTRB(14, 14, 14, 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF0DED0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF6F3212).withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildFilterBar(),
-          const Divider(height: 1, color: _border),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 18, 18, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1E3),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: const Icon(
+                    Icons.groups_2_rounded,
+                    color: _brown,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daftar Staf',
+                        style: TextStyle(
+                          color: Color(0xFF35170A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Kelola akun dan akses staf perusahaan',
+                        style: TextStyle(
+                          color: Color(0xFF9A887D),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F3EE),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${filteredUsers.length} staf',
+                    style: const TextStyle(
+                      color: _brown,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1E7DE)),
           Expanded(
             child: filteredUsers.isEmpty
                 ? _buildEmpty()
@@ -589,8 +757,6 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     },
                   ),
           ),
-          const Divider(height: 1, color: _border),
-          _buildPaginationBar(filteredUsers.length),
         ],
       ),
     );
@@ -610,7 +776,11 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
               decoration: InputDecoration(
                 hintText: 'Cari nama staf, email, atau nomor...',
                 hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-                prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey,
+                  size: 20,
+                ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -646,7 +816,13 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                 items: ['Semua Status', 'Aktif', 'Nonaktif'].map((s) {
                   return DropdownMenuItem<String>(
                     value: s,
-                    child: Text(s, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                    child: Text(
+                      s,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
+                    ),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -666,11 +842,16 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: _brown,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: _showAddStaffDialog,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Tambah Staf', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              label: const Text(
+                'Tambah Staf',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
             ),
           );
 
@@ -716,19 +897,17 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     return SingleChildScrollView(
       child: Table(
         columnWidths: const {
-          0: FlexColumnWidth(2.5),
-          1: FlexColumnWidth(2.5),
-          2: FlexColumnWidth(1.2),
-          3: FlexColumnWidth(1.2),
-          4: FlexColumnWidth(1.5),
-          5: FixedColumnWidth(60),
+          0: FlexColumnWidth(2.8),
+          1: FlexColumnWidth(2.7),
+          2: FlexColumnWidth(1.3),
+          3: FlexColumnWidth(1.3),
+          4: FlexColumnWidth(1.6),
+          5: FixedColumnWidth(72),
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
           TableRow(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFFDFB),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFFFFF7EF)),
             children: [
               _buildTableHeader('Staf'),
               _buildTableHeader('Kontak'),
@@ -738,23 +917,32 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
               _buildTableHeader('Aksi', align: Alignment.center),
             ],
           ),
-          ...paginatedUsers.map((user) {
+          ...paginatedUsers.asMap().entries.map((entry) {
+            final index = entry.key;
+            final user = entry.value;
             final sub = _getStaffSubtitle(user.email);
             final roleLabel = _getStaffRoleLabel(user.email, user.role);
-
             return TableRow(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+              decoration: BoxDecoration(
+                color: index.isEven ? Colors.white : const Color(0xFFFFFCF8),
+                border: const Border(
+                  bottom: BorderSide(color: Color(0xFFF0E8E1)),
+                ),
               ),
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         backgroundColor: const Color(0xFFFFF0DD),
                         child: Text(
-                          user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                          user.name.isNotEmpty
+                              ? user.name[0].toUpperCase()
+                              : '?',
                           style: const TextStyle(
                             color: _brown,
                             fontWeight: FontWeight.bold,
@@ -784,7 +972,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                                 if (user.role.toLowerCase() == 'admin') ...[
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE6F4EA),
                                       borderRadius: BorderRadius.circular(4),
@@ -818,7 +1009,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -826,12 +1020,19 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.mail_outline_rounded, size: 14, color: Colors.grey),
+                          const Icon(
+                            Icons.mail_outline_rounded,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               user.email,
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -842,11 +1043,18 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.phone_outlined, size: 14, color: Colors.grey),
+                            const Icon(
+                              Icons.phone_outlined,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               user.phone!,
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
                             ),
                           ],
                         ),
@@ -855,18 +1063,27 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: _StatusChip(isActive: user.isActive),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _getRoleBgColor(roleLabel),
                         borderRadius: BorderRadius.circular(6),
@@ -883,7 +1100,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
                   child: Text(
                     _formatDate(user.createdAt),
                     style: const TextStyle(fontSize: 13, color: Colors.black87),
@@ -903,7 +1123,11 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 18,
+                            color: Colors.blue,
+                          ),
                           SizedBox(width: 8),
                           Text('Ubah Data'),
                         ],
@@ -913,9 +1137,16 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: Colors.red,
+                          ),
                           SizedBox(width: 8),
-                          Text('Hapus Akun', style: TextStyle(color: Colors.red)),
+                          Text(
+                            'Hapus Akun',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),
@@ -929,16 +1160,20 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     );
   }
 
-  Widget _buildTableHeader(String text, {Alignment align = Alignment.centerLeft}) {
+  Widget _buildTableHeader(
+    String text, {
+    Alignment align = Alignment.centerLeft,
+  }) {
     return Container(
       alignment: align,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Text(
         text,
         style: const TextStyle(
           fontWeight: FontWeight.bold,
-          color: _brown,
-          fontSize: 13,
+          color: Color(0xFF8A4B2A),
+          fontSize: 12,
+          letterSpacing: 0.2,
         ),
       ),
     );
@@ -955,12 +1190,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: paginatedUsers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final user = paginatedUsers[i];
         final sub = _getStaffSubtitle(user.email);
-        final roleLabel = _getStaffRoleLabel(user.email, user.role);
-
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1002,7 +1235,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                       const SizedBox(height: 2),
                       Text(
                         sub,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 4),
@@ -1013,7 +1249,10 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     if (user.phone != null && user.phone!.isNotEmpty)
                       Text(
                         user.phone!,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                   ],
                 ),
@@ -1042,7 +1281,11 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: Colors.red,
+                        ),
                         SizedBox(width: 8),
                         Text('Hapus Akun', style: TextStyle(color: Colors.red)),
                       ],
@@ -1058,9 +1301,15 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
   }
 
   Widget _buildPaginationBar(int totalCount) {
-    final totalPages = totalCount == 0 ? 1 : (totalCount / _itemsPerPage).ceil();
-    final startIdx = totalCount == 0 ? 0 : (_currentPage - 1) * _itemsPerPage + 1;
-    final endIdx = (_currentPage * _itemsPerPage) > totalCount ? totalCount : (_currentPage * _itemsPerPage);
+    final totalPages = totalCount == 0
+        ? 1
+        : (totalCount / _itemsPerPage).ceil();
+    final startIdx = totalCount == 0
+        ? 0
+        : (_currentPage - 1) * _itemsPerPage + 1;
+    final endIdx = (_currentPage * _itemsPerPage) > totalCount
+        ? totalCount
+        : (_currentPage * _itemsPerPage);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1084,7 +1333,13 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
                     items: [5, 10, 20, 50].map((count) {
                       return DropdownMenuItem<int>(
                         value: count,
-                        child: Text('$count per halaman', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        child: Text(
+                          '$count per halaman',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -1168,10 +1423,7 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    perPageDropdown,
-                    statsText,
-                  ],
+                  children: [perPageDropdown, statsText],
                 ),
                 Center(child: navButtons),
               ],
@@ -1179,11 +1431,7 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
           } else {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                perPageDropdown,
-                statsText,
-                navButtons,
-              ],
+              children: [perPageDropdown, statsText, navButtons],
             );
           }
         },
@@ -1204,7 +1452,9 @@ class _ManageStaffPageState extends State<ManageStaffPage> {
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: enabled ? _border : _border.withOpacity(0.4)),
+          border: Border.all(
+            color: enabled ? _border : _border.withOpacity(0.4),
+          ),
         ),
         alignment: Alignment.center,
         child: Icon(
@@ -1273,7 +1523,9 @@ class _StatusChip extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isActive ? const Color(0xFF137333) : const Color(0xFFC2410C),
+              color: isActive
+                  ? const Color(0xFF137333)
+                  : const Color(0xFFC2410C),
             ),
           ),
           const SizedBox(width: 6),
@@ -1281,7 +1533,9 @@ class _StatusChip extends StatelessWidget {
             isActive ? 'Aktif' : 'Nonaktif',
             style: TextStyle(
               fontSize: 11,
-              color: isActive ? const Color(0xFF137333) : const Color(0xFFC2410C),
+              color: isActive
+                  ? const Color(0xFF137333)
+                  : const Color(0xFFC2410C),
               fontWeight: FontWeight.bold,
             ),
           ),

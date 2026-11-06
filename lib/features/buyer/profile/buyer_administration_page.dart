@@ -26,20 +26,20 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
   String? _errorMessage;
 
   // ── controllers : DATA PRIBADI ────────────────────────────────────────────
-  final _nameCtrl        = TextEditingController();
-  final _emailCtrl       = TextEditingController();
-  final _phoneCtrl       = TextEditingController();
-  final _waCtrl          = TextEditingController();
-  final _noteCtrl        = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _waCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
 
   // ── controllers : ALAMAT ──────────────────────────────────────────────────
-  final _recipientCtrl   = TextEditingController();
+  final _recipientCtrl = TextEditingController();
   final _addressLineCtrl = TextEditingController();
-  final _provinceCtrl    = TextEditingController();
-  final _cityCtrl        = TextEditingController();
-  final _districtCtrl    = TextEditingController();
+  final _provinceCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  final _districtCtrl = TextEditingController();
   final _subdistrictCtrl = TextEditingController();
-  final _postalCodeCtrl  = TextEditingController();
+  final _postalCodeCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -50,9 +50,18 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
   @override
   void dispose() {
     for (final c in [
-      _nameCtrl, _emailCtrl, _phoneCtrl, _waCtrl, _noteCtrl,
-      _recipientCtrl, _addressLineCtrl, _provinceCtrl, _cityCtrl,
-      _districtCtrl, _subdistrictCtrl, _postalCodeCtrl,
+      _nameCtrl,
+      _emailCtrl,
+      _phoneCtrl,
+      _waCtrl,
+      _noteCtrl,
+      _recipientCtrl,
+      _addressLineCtrl,
+      _provinceCtrl,
+      _cityCtrl,
+      _districtCtrl,
+      _subdistrictCtrl,
+      _postalCodeCtrl,
     ]) {
       c.dispose();
     }
@@ -85,21 +94,21 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
 
   void _fillControllers(BuyerProfileData profile) {
     final name = profile.user?['name']?.toString() ?? '';
-    _nameCtrl.text        = name;
-    _emailCtrl.text       = profile.contact.email;
-    _phoneCtrl.text       = profile.contact.phone;
-    _waCtrl.text          = profile.contact.whatsapp;
-    _noteCtrl.text        = profile.contact.contactNote;
+    _nameCtrl.text = name;
+    _emailCtrl.text = profile.contact.email;
+    _phoneCtrl.text = profile.contact.phone;
+    _waCtrl.text = profile.contact.whatsapp;
+    _noteCtrl.text = profile.contact.contactNote;
 
-    _recipientCtrl.text   = profile.address.recipientName.isNotEmpty
+    _recipientCtrl.text = profile.address.recipientName.isNotEmpty
         ? profile.address.recipientName
         : name;
     _addressLineCtrl.text = profile.address.addressLine;
-    _provinceCtrl.text    = profile.address.province;
-    _cityCtrl.text        = profile.address.city;
-    _districtCtrl.text    = profile.address.district;
+    _provinceCtrl.text = profile.address.province;
+    _cityCtrl.text = profile.address.city;
+    _districtCtrl.text = profile.address.district;
     _subdistrictCtrl.text = profile.address.subdistrict;
-    _postalCodeCtrl.text  = profile.address.postalCode;
+    _postalCodeCtrl.text = profile.address.postalCode;
   }
 
   // ── save ──────────────────────────────────────────────────────────────────
@@ -108,21 +117,21 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
     setState(() => _isSaving = true);
 
     final contact = BuyerContactModel(
-      email:       _emailCtrl.text.trim(),
-      phone:       _phoneCtrl.text.trim(),
-      whatsapp:    _waCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      whatsapp: _waCtrl.text.trim(),
       contactNote: _noteCtrl.text.trim(),
     );
 
     final address = BuyerAddressModel(
       recipientName: _recipientCtrl.text.trim(),
-      addressLine:   _addressLineCtrl.text.trim(),
-      province:      _provinceCtrl.text.trim(),
-      city:          _cityCtrl.text.trim(),
-      district:      _districtCtrl.text.trim(),
-      subdistrict:   _subdistrictCtrl.text.trim(),
-      postalCode:    _postalCodeCtrl.text.trim(),
-      landmark:      '',
+      addressLine: _addressLineCtrl.text.trim(),
+      province: _provinceCtrl.text.trim(),
+      city: _cityCtrl.text.trim(),
+      district: _districtCtrl.text.trim(),
+      subdistrict: _subdistrictCtrl.text.trim(),
+      postalCode: _postalCodeCtrl.text.trim(),
+      landmark: '',
     );
 
     final response = await _profileService.updateMyBuyerProfile(
@@ -164,8 +173,8 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? _ErrorState(message: _errorMessage!, onRetry: _loadProfile)
-              : _buildForm(),
+          ? _ErrorState(message: _errorMessage!, onRetry: _loadProfile)
+          : _buildForm(),
       bottomNavigationBar: (_isLoading || _errorMessage != null)
           ? null
           : _buildBottomBar(),
@@ -174,29 +183,29 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFFFAF3E8),
+      backgroundColor: const Color(0xFF6B2D0E),
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF2F2318)),
+        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
           Text(
-            'Profil Saya',
+            'Detail Pribadi',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF2F2318),
+              color: Colors.white,
             ),
           ),
           Text(
             'Kelola informasi pribadi, kontak, dan alamat Anda',
             style: TextStyle(
               fontSize: 11,
-              color: Color(0xFF8A7563),
+              color: Color(0xFFEED8C4),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -249,7 +258,6 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
             controller: _recipientCtrl,
           ),
           _FieldCard(
-
             icon: Icons.home_outlined,
             label: 'Alamat Lengkap',
             controller: _addressLineCtrl,
@@ -322,8 +330,9 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
             onPressed: _isSaving ? null : _saveChanges,
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF6B2D0E),
-              disabledBackgroundColor:
-                  const Color(0xFF6B2D0E).withValues(alpha: 0.5),
+              disabledBackgroundColor: const Color(
+                0xFF6B2D0E,
+              ).withValues(alpha: 0.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -340,10 +349,7 @@ class _BuyerAdministrationPageState extends State<BuyerAdministrationPage> {
                 : const Icon(Icons.save_rounded, size: 20),
             label: Text(
               _isSaving ? 'Menyimpan...' : 'Simpan Perubahan',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
             ),
           ),
         ),
@@ -452,9 +458,8 @@ class _FieldCard extends StatelessWidget {
     required this.label,
     required this.controller,
     this.keyboardType = TextInputType.text,
-    this.hint,
     this.maxLines = 1,
-  });
+  }) : hint = null;
 
   @override
   Widget build(BuildContext context) {

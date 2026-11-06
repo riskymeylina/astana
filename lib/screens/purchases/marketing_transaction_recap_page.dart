@@ -1,8 +1,13 @@
+import '../../widgets/braga_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/buyer_record_model.dart';
 import '../../models/purchase_order_model.dart';
+import '../../models/recap_transaction_model.dart';
+import '../../services/admin_buyer_record_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/purchase_service.dart';
 import 'widgets/staff_payment_summary_card.dart';
 import 'purchase_detail_page.dart';
@@ -18,26 +23,83 @@ class MarketingTransactionRecapPage extends StatefulWidget {
 class _MarketingTransactionRecapPageState
     extends State<MarketingTransactionRecapPage> {
   final PurchaseService _purchaseService = PurchaseService();
+  final AdminBuyerRecordService _buyerRecordService = AdminBuyerRecordService();
   final NumberFormat _priceFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
     decimalDigits: 0,
   );
-  final DateFormat _dateFormat = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
 
   bool _isLoading = true;
+  bool _hasLoadedOrders = false;
   bool _isLocaleReady = false;
   String? _errorMessage;
   List<PurchaseOrderModel> _orders = const [];
+  List<BuyerRecord> _buyerRecords = const [];
+  List<HistoricalSale> _historicalSales = const [];
+  String? _buyerError;
   List<int> _availableYears = [];
   DateTime? _filterFrom;
   DateTime? _filterTo;
   int? _filterMonth;
   int? _filterYear;
+  String? _filterStatus;
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  final List<String?> _statusFilterOptions = [
+    null,
+    'confirmed',
+    'pending_payment',
+    'payment_uploaded',
+    'payment_review',
+    'rejected',
+    'cancelled',
+  ];
+
+  String _statusOptionLabel(String? status) {
+    switch (status) {
+      case 'confirmed':
+        return 'Dikonfirmasi (Lunas)';
+      case 'pending_payment':
+        return 'Menunggu Pembayaran';
+      case 'payment_uploaded':
+        return 'Bukti Diunggah';
+      case 'payment_review':
+        return 'Sedang Ditinjau';
+      case 'rejected':
+        return 'Ditolak';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return 'Semua Status';
+    }
+  }
 
   // Pagination
   int _currentPage = 1;
   int _itemsPerPage = 10;
+
+  // KPI Recap Stats
+  List<RecapTransaction> get _filteredTransactions => RecapTransaction.combine(
+    orders: _orders,
+    historicalSales: _filteredHistoricalSales,
+    buyerRecords: _buyerRecords,
+  );
+
+  int get _totalTransactions => _filteredTransactions.length;
+
+  int get _uniqueBuyerCount => _filteredTransactions
+      .map((transaction) => transaction.buyerKey(_buyerRecords))
+      .toSet()
+      .length;
+
+  int get _confirmedUnitCount => _filteredTransactions
+      .where((transaction) => transaction.isConfirmed)
+      .length;
+
+  double get _totalRevenue => _filteredTransactions
+      .where((transaction) => transaction.isConfirmed)
+      .fold<double>(0, (sum, transaction) => sum + transaction.amount);
 
   @override
   void initState() {
@@ -45,20 +107,35 @@ class _MarketingTransactionRecapPageState
     _preparePage();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _preparePage() async {
     await initializeDateFormatting('id_ID');
     if (!mounted) return;
     setState(() => _isLocaleReady = true);
-    await _loadOrders();
+    await Future.wait([_loadOrders(), _loadBuyerData()]);
+  }
+
+  Future<void> _refreshRecap() async {
+    await Future.wait([_loadOrders(), _loadBuyerData()]);
   }
 
   Future<void> _loadOrders() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (!_hasLoadedOrders) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
+    final searchVal = _searchCtrl.text.trim();
     final response = await _purchaseService.getAllOrders(
+      status: _filterStatus,
+      search: searchVal.isEmpty ? null : searchVal,
       from: _filterFrom,
       to: _filterTo,
       month: _filterMonth,
@@ -80,6 +157,7 @@ class _MarketingTransactionRecapPageState
       _orders = parsedOrders;
       _currentPage = 1;
       _isLoading = false;
+      _hasLoadedOrders = true;
 
       if (_availableYears.isEmpty ||
           (_filterFrom == null &&
@@ -95,26 +173,143 @@ class _MarketingTransactionRecapPageState
             }
           }
         }
+        for (final sale in _historicalSales) {
+          if (sale.transactionDate != null) {
+            yearsSet.add(sale.transactionDate!.toLocal().year);
+          }
+        }
         yearsSet.add(DateTime.now().year);
         _availableYears = yearsSet.toList()..sort((a, b) => b.compareTo(a));
       }
     });
   }
 
-  List<PurchaseOrderModel> get _pagedOrders {
+  Future<void> _loadBuyerData() async {
+    try {
+      final records = <BuyerRecord>[];
+      final sales = <HistoricalSale>[];
+      var recordsPage = 1;
+      var salesPage = 1;
+      var recordsTotal = 0;
+      var salesTotal = 0;
+
+      do {
+        final response = await _buyerRecordService.getBuyerRecords(
+          page: recordsPage,
+          limit: 100,
+        );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw StateError(_buyerRecordService.parseMessage(response.body));
+        }
+        records.addAll(_buyerRecordService.parseBuyerRecords(response.body));
+        recordsTotal = _buyerRecordService.parseTotalCount(response.body);
+        recordsPage++;
+      } while (records.length < recordsTotal);
+
+      do {
+        final response = await _buyerRecordService.getHistoricalSales(
+          page: salesPage,
+          limit: 100,
+        );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw StateError(_buyerRecordService.parseMessage(response.body));
+        }
+        sales.addAll(_buyerRecordService.parseHistoricalSales(response.body));
+        salesTotal = _buyerRecordService.parseTotalCount(response.body);
+        salesPage++;
+      } while (sales.length < salesTotal);
+
+      if (!mounted) return;
+      setState(() {
+        _buyerRecords = records;
+        _historicalSales = sales;
+        _buyerError = null;
+        final years = _availableYears.toSet();
+        for (final sale in sales) {
+          if (sale.transactionDate != null) {
+            years.add(sale.transactionDate!.toLocal().year);
+          }
+        }
+        _availableYears = years.toList()..sort((a, b) => b.compareTo(a));
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _buyerError = error.toString().replaceFirst('Bad state: ', '');
+      });
+    }
+  }
+
+  List<HistoricalSale> get _filteredHistoricalSales {
+    final search = _searchCtrl.text.trim().toLowerCase();
+    return _historicalSales.where((sale) {
+      final saleStatus = switch (sale.status) {
+        'completed' => 'confirmed',
+        'pending' => 'pending_payment',
+        _ => sale.status,
+      };
+      if (_filterStatus != null && saleStatus != _filterStatus) return false;
+
+      final date = sale.transactionDate?.toLocal();
+      if (_filterFrom != null &&
+          (date == null || _dateOnly(date).isBefore(_dateOnly(_filterFrom!)))) {
+        return false;
+      }
+      if (_filterTo != null &&
+          (date == null || _dateOnly(date).isAfter(_dateOnly(_filterTo!)))) {
+        return false;
+      }
+      if (_filterMonth != null && date?.month != _filterMonth) return false;
+      if (_filterYear != null && date?.year != _filterYear) return false;
+      if (search.isEmpty) return true;
+
+      final buyer = _buyerRecordForSale(sale);
+      final searchableValues = [
+        sale.buyerFullName,
+        buyer?.fullName,
+        sale.buyerPhone,
+        buyer?.phone,
+        sale.propertyNameSnapshot,
+        sale.propertyLocation,
+        sale.paymentMethod,
+        sale.notes,
+      ];
+      return searchableValues.any(
+        (value) => value?.toLowerCase().contains(search) ?? false,
+      );
+    }).toList();
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  String _normalizedBuyerName(String name) => name
+      .trim()
+      .replaceFirst(RegExp(r'^(?:(?:ibu|bapak)\s+)+', caseSensitive: false), '')
+      .trim()
+      .toLowerCase();
+
+  String _displayBuyerName(String name) => name
+      .trim()
+      .replaceFirst(RegExp(r'^(?:(?:ibu|bapak)\s+)+', caseSensitive: false), '')
+      .trim();
+
+  BuyerRecord? _buyerRecordForSale(HistoricalSale sale) {
+    for (final buyer in _buyerRecords) {
+      if (buyer.id == sale.buyerRecordId) return buyer;
+    }
+    return null;
+  }
+
+  List<RecapTransaction> get _pagedTransactions {
     final start = (_currentPage - 1) * _itemsPerPage;
-    final end = (start + _itemsPerPage).clamp(0, _orders.length);
-    if (start >= _orders.length) return [];
-    return _orders.sublist(start, end);
+    final end = (start + _itemsPerPage).clamp(0, _filteredTransactions.length);
+    if (start >= _filteredTransactions.length) return [];
+    return _filteredTransactions.sublist(start, end);
   }
 
-  int get _totalPages => (_orders.length / _itemsPerPage).ceil().clamp(1, 9999);
-
-  String _formatDate(String? value) {
-    final parsed = DateTime.tryParse(value ?? '');
-    if (parsed == null) return '-';
-    return _dateFormat.format(parsed.toLocal());
-  }
+  int get _totalPages =>
+      (_filteredTransactions.length / _itemsPerPage).ceil().clamp(1, 9999);
 
   String _formatDateShort(String? value) {
     final parsed = DateTime.tryParse(value ?? '');
@@ -128,16 +323,11 @@ class _MarketingTransactionRecapPageState
     return '${DateFormat('HH:mm', 'id_ID').format(parsed.toLocal())} WIB';
   }
 
-  String _maskPhone(String phone) {
-    if (phone.length <= 4) return phone;
-    return '${phone.substring(0, 4)}-****-${phone.substring(phone.length - 4)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: RefreshIndicator(onRefresh: _loadOrders, child: _buildBody()),
+      body: RefreshIndicator(onRefresh: _refreshRecap, child: _buildBody()),
     );
   }
 
@@ -162,6 +352,8 @@ class _MarketingTransactionRecapPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _buildSummaryCards(),
+                  const SizedBox(height: 12),
                   _buildFilterSection(),
                   const SizedBox(height: 24),
                   _buildTransactionTable(),
@@ -176,93 +368,104 @@ class _MarketingTransactionRecapPageState
   }
 
   // ── HERO BANNER ──────────────────────────────────────────────────────────
+  // -- HERO BANNER (Standardized with BragaPageHeader) ---------------------
   Widget _buildHeroBanner() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      width: double.infinity,
-      height: 140,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF7B3A10), Color(0xFF4A1E08)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Positioned(
-            right: -40,
-            top: -40,
-            child: Opacity(
-              opacity: 0.08,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+    return BragaPageHeader(
+      title: 'Rekap Data Transaksi',
+      subtitle: 'Kelola dan pantau semua transaksi pemesanan properti',
+      onBack: () => Navigator.of(context).maybePop(),
+      decorativeIcon: Icons.receipt_long_rounded,
+    );
+  }
+
+  // ── RINGKASAN REKAP STATS (KPI CARDS) ──────────────────────────────────
+  Widget _buildSummaryCards() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 760
+            ? 4
+            : constraints.maxWidth >= 460
+            ? 2
+            : 1;
+        final cards = [
+          _buildSummaryCardItem(
+            title: 'Total Transaksi',
+            value: '$_totalTransactions',
+            subtitle: 'Pesanan properti',
           ),
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).maybePop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(40),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withAlpha(70),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Rekap Data Transaksi',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Kelola dan pantau semua transaksi pemesanan properti',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withAlpha(210),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          _buildSummaryCardItem(
+            title: 'Pembeli Bertransaksi',
+            value: '$_uniqueBuyerCount',
+            subtitle: 'Pembeli unik pada transaksi',
+          ),
+          _buildSummaryCardItem(
+            title: 'Unit Terjual',
+            value: '$_confirmedUnitCount',
+            subtitle: 'Transaksi lunas',
+          ),
+          _buildSummaryCardItem(
+            title: 'Omzet Lunas',
+            value: _priceFormat.format(_totalRevenue),
+            subtitle: 'Transaksi dikonfirmasi',
+          ),
+        ];
+
+        const spacing = 8.0;
+        final cardWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards
+              .map((card) => SizedBox(width: cardWidth, child: card))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryCardItem({
+    required String title,
+    required String value,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEE5DC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8A7568),
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: value.length > 14 ? 15 : (value.length > 9 ? 18 : 20),
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF2A1508),
+              height: 1.1,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 10, color: Color(0xFFAAAAAA)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -272,7 +475,7 @@ class _MarketingTransactionRecapPageState
   // ── FILTER SECTION ───────────────────────────────────────────────────────
   Widget _buildFilterSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -285,113 +488,212 @@ class _MarketingTransactionRecapPageState
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.tune_rounded, size: 15, color: Color(0xFF8B4513)),
-          const SizedBox(width: 8),
-          const Text(
-            'Filter:',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _buildDateField(
-              'Tanggal awal',
-              _filterFrom,
-              () => _pickDate(isFrom: true),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildDateField(
-              'Tanggal akhir',
-              _filterTo,
-              () => _pickDate(isFrom: false),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildDropdownField<int?>(
-              icon: Icons.calendar_month_rounded,
-              hint: 'Semua bulan',
-              value: _filterMonth,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Semua bulan')),
-                ...List.generate(
-                  12,
-                  (i) => DropdownMenuItem(
-                    value: i + 1,
-                    child: Text(
-                      _isLocaleReady
-                          ? DateFormat.MMMM(
-                              'id_ID',
-                            ).format(DateTime(2024, i + 1))
-                          : '${i + 1}',
+          // Row 1: Search bar
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAFAFA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDDDDDD)),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onSubmitted: (_) => _loadOrders(),
+                    style: const TextStyle(fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama pembeli, judul properti, lokasi...',
+                      hintStyle: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF999999),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: Color(0xFF8B4513),
+                      ),
+                      suffixIcon: _searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 16),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                _loadOrders();
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
-              ],
-              onChanged: (v) => setState(() => _filterMonth = v),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildDropdownField<int?>(
-              icon: Icons.event_note_rounded,
-              hint: 'Semua tahun',
-              value: _filterYear,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Semua tahun')),
-                ..._availableYears.map(
-                  (y) => DropdownMenuItem(value: y, child: Text('$y')),
-                ),
-              ],
-              onChanged: (v) => setState(() => _filterYear = v),
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _filterFrom = null;
-                _filterTo = null;
-                _filterMonth = null;
-                _filterYear = null;
-              });
-              _loadOrders();
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF8B4513),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text(
-              'Reset',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-            ),
-          ),
-          const SizedBox(width: 4),
-          FilledButton.icon(
-            onPressed: _loadOrders,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF8B4513),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            icon: const Icon(Icons.filter_alt_rounded, size: 14),
-            label: const Text(
-              'Terapkan',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-            ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _loadOrders,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B4513),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  minimumSize: const Size(0, 42),
+                ),
+                child: const Text(
+                  'Cari',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Row 2: Status & Dates & Month & Year & Reset
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Status filter
+              SizedBox(
+                width: 180,
+                child: _buildDropdownField<String?>(
+                  icon: Icons.filter_list_rounded,
+                  hint: 'Semua status',
+                  value: _filterStatus,
+                  items: _statusFilterOptions
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(
+                            _statusOptionLabel(s),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _filterStatus = v),
+                ),
+              ),
+              // Tanggal awal
+              SizedBox(
+                width: 140,
+                child: _buildDateField(
+                  'Tanggal awal',
+                  _filterFrom,
+                  () => _pickDate(isFrom: true),
+                ),
+              ),
+              // Tanggal akhir
+              SizedBox(
+                width: 140,
+                child: _buildDateField(
+                  'Tanggal akhir',
+                  _filterTo,
+                  () => _pickDate(isFrom: false),
+                ),
+              ),
+              // Bulan
+              SizedBox(
+                width: 140,
+                child: _buildDropdownField<int?>(
+                  icon: Icons.calendar_month_rounded,
+                  hint: 'Semua bulan',
+                  value: _filterMonth,
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Semua bulan'),
+                    ),
+                    ...List.generate(
+                      12,
+                      (i) => DropdownMenuItem(
+                        value: i + 1,
+                        child: Text(
+                          _isLocaleReady
+                              ? DateFormat.MMMM(
+                                  'id_ID',
+                                ).format(DateTime(2024, i + 1))
+                              : '${i + 1}',
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _filterMonth = v),
+                ),
+              ),
+              // Tahun
+              SizedBox(
+                width: 130,
+                child: _buildDropdownField<int?>(
+                  icon: Icons.event_note_rounded,
+                  hint: 'Semua tahun',
+                  value: _filterYear,
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Semua tahun'),
+                    ),
+                    ..._availableYears.map(
+                      (y) => DropdownMenuItem(value: y, child: Text('$y')),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _filterYear = v),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _searchCtrl.clear();
+                    _filterStatus = null;
+                    _filterFrom = null;
+                    _filterTo = null;
+                    _filterMonth = null;
+                    _filterYear = null;
+                  });
+                  _loadOrders();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF8B4513),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Reset',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _loadOrders,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B4513),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.filter_alt_rounded, size: 14),
+                label: const Text(
+                  'Terapkan',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -521,14 +823,49 @@ class _MarketingTransactionRecapPageState
     );
     if (picked == null || !mounted) return;
     setState(() {
-      if (isFrom)
+      if (isFrom) {
         _filterFrom = picked;
-      else
+      } else {
         _filterTo = picked;
+      }
     });
   }
 
   // ── TABEL TRANSAKSI TERBARU ───────────────────────────────────────────────
+  BuyerRecord? _buyerRecordFor(PurchaseOrderModel order) {
+    for (final buyer in _buyerRecords) {
+      if (order.buyerRecordId != null && buyer.id == order.buyerRecordId) {
+        return buyer;
+      }
+    }
+
+    for (final buyer in _buyerRecords) {
+      if (order.buyerUserId != null &&
+          buyer.linkedUserId == order.buyerUserId) {
+        return buyer;
+      }
+    }
+
+    final orderPhone = (order.buyerPhoneSnapshot ?? '').replaceAll(
+      RegExp(r'\D'),
+      '',
+    );
+    if (orderPhone.isNotEmpty) {
+      for (final buyer in _buyerRecords) {
+        final buyerPhone = (buyer.phone ?? '').replaceAll(RegExp(r'\D'), '');
+        if (buyerPhone.isNotEmpty && buyerPhone == orderPhone) return buyer;
+      }
+    }
+
+    final orderName = _normalizedBuyerName(order.buyerNameSnapshot);
+    if (orderName.isNotEmpty) {
+      for (final buyer in _buyerRecords) {
+        if (_normalizedBuyerName(buyer.fullName) == orderName) return buyer;
+      }
+    }
+    return null;
+  }
+
   Widget _buildTransactionTable() {
     return Container(
       decoration: BoxDecoration(
@@ -552,7 +889,7 @@ class _MarketingTransactionRecapPageState
             child: Row(
               children: [
                 const Text(
-                  'Transaksi Terbaru',
+                  'Transaksi',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -560,7 +897,7 @@ class _MarketingTransactionRecapPageState
                   ),
                 ),
                 const Spacer(),
-                if (_orders.isNotEmpty)
+                if (_totalTransactions > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -571,7 +908,7 @@ class _MarketingTransactionRecapPageState
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${_orders.length} transaksi',
+                      '$_totalTransactions transaksi',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF8B4513),
@@ -583,14 +920,27 @@ class _MarketingTransactionRecapPageState
             ),
           ),
 
-          if (_orders.isEmpty)
+          if (_buyerError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'Data transaksi pembeli gagal dimuat: $_buyerError',
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+
+          if (_totalTransactions == 0)
             _buildEmptyState()
           else ...[
             // Header tabel
             _buildTableHeader(),
             const Divider(height: 1, color: Color(0xFFEFEFEF)),
             // Rows
-            ..._pagedOrders.map((order) => _buildTableRow(order)),
+            ..._pagedTransactions.map(
+              (transaction) => transaction.order != null
+                  ? _buildTableRow(transaction.order!)
+                  : _buildHistoricalSaleTableRow(transaction.historicalSale!),
+            ),
             // Footer pagination
             _buildPaginationFooter(),
           ],
@@ -606,7 +956,7 @@ class _MarketingTransactionRecapPageState
       child: const Row(
         children: [
           Expanded(flex: 4, child: _TableHeaderCell('Properti')),
-          Expanded(flex: 3, child: _TableHeaderCell('Buyer')),
+          Expanded(flex: 3, child: _TableHeaderCell('Pembeli')),
           Expanded(flex: 2, child: _TableHeaderCell('Status')),
           Expanded(flex: 3, child: _TableHeaderCell('Tanggal Transaksi')),
           Expanded(flex: 3, child: _TableHeaderCell('Nilai Transaksi')),
@@ -617,6 +967,12 @@ class _MarketingTransactionRecapPageState
   }
 
   Widget _buildTableRow(PurchaseOrderModel order) {
+    final buyer = _buyerRecordFor(order);
+    final buyerName = _displayBuyerName(
+      buyer?.fullName ?? order.buyerNameSnapshot,
+    );
+    final buyerPhone = buyer?.phone ?? order.buyerPhoneSnapshot;
+
     return Column(
       children: [
         Padding(
@@ -628,19 +984,7 @@ class _MarketingTransactionRecapPageState
                 flex: 4,
                 child: Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        color: const Color(0xFFF0E6D8),
-                        child: const Icon(
-                          Icons.home_outlined,
-                          color: Color(0xFF8B4513),
-                          size: 24,
-                        ),
-                      ),
-                    ),
+                    _PropertyThumbnail(url: order.propertyThumbnailUrl),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -684,14 +1028,14 @@ class _MarketingTransactionRecapPageState
                   ],
                 ),
               ),
-              // Buyer
+              // Pembeli
               Expanded(
                 flex: 3,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      order.buyerNameSnapshot,
+                      buyerName,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -700,9 +1044,9 @@ class _MarketingTransactionRecapPageState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if ((order.buyerPhoneSnapshot ?? '').isNotEmpty)
+                    if ((buyerPhone ?? '').isNotEmpty)
                       Text(
-                        _maskPhone(order.buyerPhoneSnapshot!),
+                        buyerPhone!,
                         style: const TextStyle(
                           fontSize: 11,
                           color: Color(0xFF888888),
@@ -716,7 +1060,10 @@ class _MarketingTransactionRecapPageState
                 flex: 2,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: StaffStatusBadge(status: order.status),
+                  child: StaffStatusBadge(
+                    status: order.status,
+                    paymentMethod: order.paymentMethod,
+                  ),
                 ),
               ),
               // Tanggal
@@ -761,7 +1108,7 @@ class _MarketingTransactionRecapPageState
               Expanded(
                 flex: 3,
                 child: Text(
-                  _priceFormat.format(order.propertyPrice),
+                  _priceFormat.format(order.totalPrice ?? order.propertyPrice),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
@@ -811,9 +1158,200 @@ class _MarketingTransactionRecapPageState
     );
   }
 
+  Widget _buildHistoricalSaleTableRow(HistoricalSale sale) {
+    final buyer = _buyerRecordForSale(sale);
+    final buyerName = _displayBuyerName(
+      buyer?.fullName ?? sale.buyerFullName ?? '',
+    );
+    final buyerPhone = buyer?.phone ?? sale.buyerPhone;
+    final propertyName = sale.propertyTitleCurrent?.trim().isNotEmpty == true
+        ? sale.propertyTitleCurrent!
+        : sale.propertyNameSnapshot;
+    final saleStatus = switch (sale.status) {
+      'completed' => 'confirmed',
+      'pending' => 'pending_payment',
+      _ => sale.status,
+    };
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Row(
+                  children: [
+                    _PropertyThumbnail(url: sale.propertyThumbnailUrl),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            propertyName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (sale.propertyLocation?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 11,
+                                  color: Color(0xFF999999),
+                                ),
+                                const SizedBox(width: 2),
+                                Expanded(
+                                  child: Text(
+                                    sale.propertyLocation!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF999999),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      buyerName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (buyerPhone?.isNotEmpty == true)
+                      Text(
+                        buyerPhone!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF888888),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: StaffStatusBadge(
+                    status: saleStatus,
+                    paymentMethod: sale.paymentMethod,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 12,
+                      color: Color(0xFF888888),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        sale.transactionDate == null
+                            ? '-'
+                            : DateFormat(
+                                'dd MMM yyyy',
+                                'id_ID',
+                              ).format(sale.transactionDate!.toLocal()),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  sale.transactionValue == null
+                      ? '-'
+                      : _priceFormat.format(sale.transactionValue),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF8B4513),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 110,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PurchaseDetailPage(
+                          purchaseId: sale.id,
+                          historicalSale: sale,
+                        ),
+                      ),
+                    );
+                    _loadBuyerData();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: const Color(0xFF8B4513),
+                    side: const BorderSide(color: Color(0xFF8B4513)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.visibility_outlined, size: 12),
+                  label: const Text(
+                    'Lihat Detail',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFFF5F5F5)),
+      ],
+    );
+  }
+
   Widget _buildPaginationFooter() {
     final startItem = (_currentPage - 1) * _itemsPerPage + 1;
-    final endItem = (_currentPage * _itemsPerPage).clamp(0, _orders.length);
+    final endItem = (_currentPage * _itemsPerPage).clamp(0, _totalTransactions);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
@@ -827,7 +1365,7 @@ class _MarketingTransactionRecapPageState
       child: Row(
         children: [
           Text(
-            'Menampilkan $startItem – $endItem dari ${_orders.length} transaksi',
+            'Menampilkan $startItem – $endItem dari $_totalTransactions transaksi',
             style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
           ),
           const Spacer(),
@@ -911,7 +1449,7 @@ class _MarketingTransactionRecapPageState
             ),
             SizedBox(height: 4),
             Text(
-              'Rekap akan muncul setelah ada pemesanan.',
+              'Rekap akan muncul setelah transaksi dicatat.',
               style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
             ),
           ],
@@ -952,6 +1490,53 @@ class _MarketingTransactionRecapPageState
 }
 
 // ── HELPER WIDGETS ────────────────────────────────────────────────────────────
+class _PropertyThumbnail extends StatelessWidget {
+  const _PropertyThumbnail({required this.url});
+
+  final String? url;
+
+  String? _resolveUrl() {
+    final value = url?.trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    final path = value.startsWith('/') ? value : '/$value';
+    return '${AuthService.serverBaseUrl}$path';
+  }
+
+  Widget _placeholder() => Container(
+    width: 48,
+    height: 48,
+    color: const Color(0xFFF0E6D8),
+    child: const Icon(Icons.home_outlined, color: Color(0xFF8B4513), size: 24),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _resolveUrl();
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: imageUrl == null
+          ? _placeholder()
+          : Image.network(
+              imageUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              filterQuality: FilterQuality.low,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return _placeholder();
+              },
+              errorBuilder: (context, error, stackTrace) => _placeholder(),
+            ),
+    );
+  }
+}
+
 class _TableHeaderCell extends StatelessWidget {
   final String text;
   const _TableHeaderCell(this.text);

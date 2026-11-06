@@ -5,8 +5,6 @@ import 'package:intl/intl.dart';
 import '../../models/purchase_order_model.dart';
 import '../../services/purchase_service.dart';
 import '../../widgets/braga_page_header.dart';
-import 'widgets/staff_payment_summary_card.dart';
-import 'purchase_detail_page.dart';
 
 class ManagePurchasesPage extends StatefulWidget {
   const ManagePurchasesPage({super.key});
@@ -637,7 +635,11 @@ class _ManagePurchasesPageState extends State<ManagePurchasesPage> {
                 formatTime: _formatTime,
                 formatPrice: _formatPrice,
                 onConfirm:
-                    (order.isPaymentUploaded || order.isPaymentReview)
+                    (order.isPaymentUploaded ||
+                            order.isPaymentReview ||
+                            ((order.paymentMethod == 'Cash Payment' ||
+                                    order.paymentMethod == 'QRIS') &&
+                                order.status == 'pending_payment'))
                         ? () => _confirmOrder(order)
                         : null,
                 onReject:

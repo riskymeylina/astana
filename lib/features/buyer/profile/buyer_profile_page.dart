@@ -18,27 +18,25 @@ class _BuyerProfilePageState extends State<BuyerProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row: judul ──
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Profil Saya',
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
                   color: Color(0xFF2F2318),
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 5),
               Text(
-                'Kelola informasi akun dan aktivitas pembelian Anda',
+                'Kelola akun dan aktivitas pembelian Anda.',
                 style: TextStyle(
                   fontSize: 13,
                   color: Color(0xFF8A7563),
@@ -55,40 +53,18 @@ class _BuyerProfilePageState extends State<BuyerProfilePage> {
             onUploadSuccess: () => setState(() {}),
           ),
 
-          const SizedBox(height: 20),
-
-          // ── Akun & Data Diri ──
-          _buildSectionTitle('Akun & Data Diri'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           BuyerProfileMenu(section: controller.sections[0]),
 
-          const SizedBox(height: 20),
-
-          // ── Aktivitas Pembelian ──
-          _buildSectionTitle('Aktivitas Pembelian'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           BuyerProfileMenu(section: controller.sections[1]),
 
-          const SizedBox(height: 20),
-
-          // ── Keluar ──
+          const SizedBox(height: 16),
           BuyerProfileLogoutTile(
             item: BuyerProfileController.logoutItem,
             onTap: () => _handleLogout(context),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title.toUpperCase(),
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 1.2,
-        color: Color(0xFF8A6F4D),
       ),
     );
   }
@@ -99,4 +75,3 @@ class _BuyerProfilePageState extends State<BuyerProfilePage> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 }
-

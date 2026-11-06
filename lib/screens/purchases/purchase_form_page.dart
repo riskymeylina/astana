@@ -38,7 +38,7 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
   final _buyerAddressController = TextEditingController();
   final _notesController = TextEditingController();
 
-  String _selectedPaymentMethod = 'Transfer Bank';
+  String _selectedPaymentMethod = 'QRIS';
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isLocaleReady = false;
@@ -89,7 +89,7 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
 
   Future<void> _prefillBuyerData() async {
     final session = AuthService().getSession();
-    _buyerNameController.text = (session?['name'] ?? '').toString();
+    _buyerNameController.text = session?['name']?.toString() ?? '';
 
     try {
       final profileResp = await _buyerProfileService.getMyBuyerProfile();
@@ -97,17 +97,17 @@ class _PurchaseFormPageState extends State<PurchaseFormPage> {
 
       if (profileResp.statusCode >= 200 && profileResp.statusCode < 300) {
         final profile = _buyerProfileService.parseProfile(profileResp.body);
-        _buyerPhoneController.text = profile.contact.whatsapp ?? '';
+        _buyerPhoneController.text = profile.contact.whatsapp;
         final parts = <String>[
-          if ((profile.address.addressLine ?? '').isNotEmpty)
-            profile.address.addressLine!,
-          if ((profile.address.district ?? '').isNotEmpty)
-            profile.address.district!,
-          if ((profile.address.city ?? '').isNotEmpty) profile.address.city!,
-          if ((profile.address.province ?? '').isNotEmpty)
-            profile.address.province!,
-          if ((profile.address.postalCode ?? '').isNotEmpty)
-            profile.address.postalCode!,
+          if (profile.address.addressLine.isNotEmpty)
+            profile.address.addressLine,
+          if (profile.address.district.isNotEmpty)
+            profile.address.district,
+          if (profile.address.city.isNotEmpty) profile.address.city,
+          if (profile.address.province.isNotEmpty)
+            profile.address.province,
+          if (profile.address.postalCode.isNotEmpty)
+            profile.address.postalCode,
         ];
         _buyerAddressController.text = parts.join(', ');
       }

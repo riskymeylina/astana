@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../models/property_model.dart';
 import '../../services/property_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/app_config.dart';
 
 class PropertyDetailPage extends StatefulWidget {
   const PropertyDetailPage({super.key, required this.propertyId});
@@ -108,10 +110,17 @@ class _PropertyDetailContent extends StatelessWidget {
         .entries
         .map(
           (entry) {
-            final isNetwork = entry.value.imageUrl.startsWith('http') ||
-                entry.value.imageUrl.startsWith('/uploads');
+            String rawUrl = entry.value.imageUrl.trim();
+            if (rawUrl.startsWith('/uploads')) {
+              rawUrl = '${AppConfig.serverBaseUrl}$rawUrl';
+            }
+            if (rawUrl.contains(' ')) {
+              rawUrl = Uri.encodeFull(rawUrl);
+            }
+
+            final isNetwork = rawUrl.startsWith('http://') || rawUrl.startsWith('https://');
             return _GalleryItem(
-              source: entry.value.imageUrl,
+              source: rawUrl,
               assetPath: isNetwork
                   ? null
                   : _resolveGalleryAssetPath(
@@ -217,25 +226,102 @@ class _PropertyDetailContent extends StatelessWidget {
         width: double.infinity,
         height: 340,
         fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Container(
+          width: double.infinity,
+          height: 340,
+          color: const Color(0xFFEADCCB),
+          child: const Icon(Icons.image_not_supported_rounded, size: 48),
+        ),
       );
     }
+
+    // Try network image with fallback to local asset if available
+    final fallbackAsset = _resolveFallbackAsset(mainItem.source, mainItem.title);
+
+    if (kIsWeb) {
+      return Image.network(
+        mainItem.source,
+        width: double.infinity,
+        height: 340,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) {
+          if (fallbackAsset != null) {
+            return Image.asset(
+              fallbackAsset,
+              width: double.infinity,
+              height: 340,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                width: double.infinity,
+                height: 340,
+                color: const Color(0xFFEADCCB),
+                child: const Icon(Icons.image_not_supported_rounded, size: 48),
+              ),
+            );
+          }
+          return Container(
+            width: double.infinity,
+            height: 340,
+            color: const Color(0xFFEADCCB),
+            child: const Icon(Icons.image_not_supported_rounded, size: 48),
+          );
+        },
+      );
+    }
+
     return CachedNetworkImage(
       imageUrl: mainItem.source,
       width: double.infinity,
       height: 340,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         width: double.infinity,
         height: 340,
         color: const Color(0xFFEADCCB),
+        child: const Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
+        ),
       ),
-      errorWidget: (_, __, ___) => Container(
-        width: double.infinity,
-        height: 340,
-        color: const Color(0xFFEADCCB),
-        child: const Icon(Icons.image_not_supported_rounded, size: 48),
-      ),
+      errorWidget: (_, _, _) {
+        if (fallbackAsset != null) {
+          return Image.asset(
+            fallbackAsset,
+            width: double.infinity,
+            height: 340,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              width: double.infinity,
+              height: 340,
+              color: const Color(0xFFEADCCB),
+              child: const Icon(Icons.image_not_supported_rounded, size: 48),
+            ),
+          );
+        }
+        return Container(
+          width: double.infinity,
+          height: 340,
+          color: const Color(0xFFEADCCB),
+          child: const Icon(Icons.image_not_supported_rounded, size: 48),
+        );
+      },
     );
+  }
+
+  static String? _resolveFallbackAsset(String source, String title) {
+    // If the filename matches any local asset in assets/images/
+    try {
+      final uri = Uri.parse(source);
+      final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+      if (filename.isNotEmpty) {
+        final decoded = Uri.decodeComponent(filename);
+        return 'assets/images/$decoded';
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -396,7 +482,7 @@ class _PropertyDetailContent extends StatelessWidget {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemCount: _galleryItems.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const SizedBox(width: 12),
                           itemBuilder: (context, index) {
                             final galleryItem = _galleryItems[index];
@@ -543,12 +629,12 @@ class _PropertyDetailContent extends StatelessWidget {
                             width: 54,
                             height: 54,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
+                            placeholder: (_, _) => Container(
                               width: 54,
                               height: 54,
                               color: const Color(0xFFEADCCB),
                             ),
-                            errorWidget: (_, __, ___) => Container(
+                            errorWidget: (_, _, _) => Container(
                               width: 54,
                               height: 54,
                               color: const Color(0xFFEADCCB),
@@ -675,125 +761,6 @@ class _PropertyDetailContent extends StatelessWidget {
     );
   }
 
-  void _showGalleryPreview(BuildContext context, _GalleryItem item) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 24,
-                    offset: Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Stack(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            height: 320,
-                            child: Image(
-                              image: item.imageProvider,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _GalleryImageFallback(title: item.title),
-                            ),
-                          ),
-                          Positioned(
-                            top: 14,
-                            right: 14,
-                            child: Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 3,
-                              child: IconButton(
-                                onPressed: () => Navigator.pop(sheetContext),
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF33241A),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item.subtitle,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF6D5540),
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: item.details
-                                  .map(
-                                    (detail) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF3D9),
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        detail,
-                                        style: const TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF5A4634),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _StatusChip extends StatelessWidget {
@@ -871,7 +838,9 @@ class _GalleryItem {
     if (asset != null) {
       return AssetImage(asset);
     }
-
+    if (kIsWeb) {
+      return NetworkImage(source);
+    }
     return CachedNetworkImageProvider(source);
   }
 }
@@ -884,6 +853,75 @@ class _GalleryThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget imageWidget;
+    if (item.assetPath != null) {
+      imageWidget = Image.asset(
+        item.assetPath!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const Icon(
+          Icons.image_rounded,
+          color: Color(0xFF8B8277),
+        ),
+      );
+    } else {
+      String? fallbackAsset;
+      try {
+        final uri = Uri.parse(item.source);
+        final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+        if (filename.isNotEmpty) {
+          fallbackAsset = 'assets/images/${Uri.decodeComponent(filename)}';
+        }
+      } catch (_) {}
+
+      if (kIsWeb) {
+        imageWidget = Image.network(
+          item.source,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) {
+            if (fallbackAsset != null) {
+              return Image.asset(
+                fallbackAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.image_rounded,
+                  color: Color(0xFF8B8277),
+                ),
+              );
+            }
+            return const Icon(Icons.image_rounded, color: Color(0xFF8B8277));
+          },
+        );
+      } else {
+        imageWidget = CachedNetworkImage(
+          imageUrl: item.source,
+          fit: BoxFit.cover,
+          placeholder: (_, _) => Container(
+            color: const Color(0xFFEAE5DD),
+            child: const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          errorWidget: (_, _, _) {
+            if (fallbackAsset != null) {
+              return Image.asset(
+                fallbackAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.image_rounded,
+                  color: Color(0xFF8B8277),
+                ),
+              );
+            }
+            return const Icon(Icons.image_rounded, color: Color(0xFF8B8277));
+          },
+        );
+      }
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -895,12 +933,7 @@ class _GalleryThumbnail extends StatelessWidget {
             width: 88,
             height: 88,
             color: const Color(0xFFEAE5DD),
-            child: Image(
-              image: item.imageProvider,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.image_rounded, color: Color(0xFF8B8277)),
-            ),
+            child: imageWidget,
           ),
         ),
       ),
@@ -1070,40 +1103,6 @@ extension _PropertyGalleryAssets on _PropertyDetailContent {
       default:
         return 'assets/images/home.jpg';
     }
-
-    return null;
-  }
-}
-
-class _GalleryImageFallback extends StatelessWidget {
-  const _GalleryImageFallback({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFEAE5DD),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.image_not_supported_rounded,
-            color: Color(0xFF8B8277),
-            size: 42,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF6D5540),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1122,76 +1121,6 @@ class _CircleButton extends StatelessWidget {
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon, size: 18, color: const Color(0xFF1E2B5B)),
-      ),
-    );
-  }
-}
-
-class _AmenityItem extends StatelessWidget {
-  const _AmenityItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 156,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5E9),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF8E4E16),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color(0xFF33241A),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF6D5540),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

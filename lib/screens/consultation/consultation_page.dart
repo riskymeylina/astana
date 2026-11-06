@@ -33,7 +33,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
     'Cari rumah sesuai budget',
     'Beli rumah pertama',
     'Cek legal & dokumen',
-    'Simulasi KPR',
+    'Simulasi Cicilan Langsung',
     'Lokasi strategis',
   ];
 
@@ -226,7 +226,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
                           maxLines: 8,
                           decoration: InputDecoration(
                             hintText:
-                                'Contoh: Saya ingin rumah 3 kamar dekat sekolah dengan skema KPR.',
+                                'Contoh: Saya ingin mengetahui skema cicilan langsung dari perusahaan.',
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
@@ -351,7 +351,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
                                 maxLines: 8,
                                 decoration: InputDecoration(
                                   hintText:
-                                      'Contoh: Saya ingin rumah 3 kamar dekat sekolah dengan skema KPR.',
+                                      'Contoh: Saya ingin mengetahui skema cicilan langsung dari perusahaan.',
                                   filled: true,
                                   fillColor: Colors.white,
                                   border: OutlineInputBorder(
@@ -480,7 +480,7 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             propertyTitle == null
-                ? 'Ajukan kebutuhan pembelian, legalitas, lokasi, atau simulasi KPR dalam satu alur yang rapi.'
+                ? 'Ajukan kebutuhan pembelian, legalitas, lokasi, atau informasi cicilan langsung perusahaan.'
                 : 'Ajukan pertanyaan khusus untuk $propertyTitle dan tim akan menindaklanjuti dari dashboard.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.78),

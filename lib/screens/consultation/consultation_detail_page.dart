@@ -106,7 +106,9 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
     if (listResponse.statusCode < 200 || listResponse.statusCode >= 300) {
       setState(() {
-        _chatErrorMessage = _consultationService.parseMessage(listResponse.body);
+        _chatErrorMessage = _consultationService.parseMessage(
+          listResponse.body,
+        );
         _isLoadingMessages = false;
       });
       return;
@@ -114,12 +116,16 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
     final allCons = _consultationService.parseConsultations(listResponse.body);
     final targetBuyerUserId = _consultation!.buyerUserId;
-    final filteredCons = allCons.where((c) => c.buyerUserId == targetBuyerUserId).toList();
+    final filteredCons = allCons
+        .where((c) => c.buyerUserId == targetBuyerUserId)
+        .toList();
 
     _buyerConsultations = filteredCons;
 
     try {
-      final futures = filteredCons.map((c) => _consultationService.getConsultationMessages(c.id)).toList();
+      final futures = filteredCons
+          .map((c) => _consultationService.getConsultationMessages(c.id))
+          .toList();
       final responses = await Future.wait(futures);
 
       if (!mounted) return;
@@ -135,7 +141,8 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
           // Inject initial message if not empty
           if (c.message.isNotEmpty) {
-            final isGeneralCS = c.propertyId == null && c.topic == 'Konsultasi umum';
+            final isGeneralCS =
+                c.propertyId == null && c.topic == 'Konsultasi umum';
             final initialMessage = isGeneralCS
                 ? ConsultationChatMessageModel(
                     id: 0,
@@ -176,8 +183,12 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
       // Sort chronologically by createdAt
       allParsedMessages.sort((a, b) {
-        final timeA = DateTime.tryParse(a.createdAt ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final timeB = DateTime.tryParse(b.createdAt ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final timeA =
+            DateTime.tryParse(a.createdAt ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final timeB =
+            DateTime.tryParse(b.createdAt ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return timeA.compareTo(timeB);
       });
 
@@ -207,12 +218,11 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
   Future<void> _pickAndSendFile({FileType type = FileType.any}) async {
     if (_isUploadingMedia) return;
-    final result = await FilePicker.pickFiles(
+    final files = await FilePickerPlatform.instance.pickFiles(
       type: FileType.custom,
-      withData: true,
       allowedExtensions: const ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
     );
-    final file = result?.files.single;
+    final file = files.isNotEmpty ? files.first : null;
     if (file == null || !mounted) return;
 
     await _showFilePreviewAndSend(file);
@@ -275,9 +285,15 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Batal'),
+                  ),
                   const SizedBox(width: 8),
-                  FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Kirim')),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Kirim'),
+                  ),
                 ],
               ),
             ),
@@ -299,7 +315,9 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_consultationService.parseMessage(response.body))),
+        SnackBar(
+          content: Text(_consultationService.parseMessage(response.body)),
+        ),
       );
       return;
     }
@@ -309,7 +327,7 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
   }
 
   Future<void> _showFilePreviewAndSend(PlatformFile file) async {
-    final size = file.size;
+    final size = file.lengthSync() ?? await file.length();
     const maxSize = 10 * 1024 * 1024; // 10 MB
     if (size > maxSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -327,16 +345,25 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(file.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(
+                file.name,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 8),
-              Text('${(file.size / 1024).toStringAsFixed(1)} KB'),
+              Text('${(size / 1024).toStringAsFixed(1)} KB'),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Batal'),
+                  ),
                   const SizedBox(width: 8),
-                  FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Kirim')),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Kirim'),
+                  ),
                 ],
               ),
             ],
@@ -358,7 +385,9 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_consultationService.parseMessage(response.body))),
+        SnackBar(
+          content: Text(_consultationService.parseMessage(response.body)),
+        ),
       );
       return;
     }
@@ -375,10 +404,18 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Kirim Pesan?'),
-        content: const Text('Pesan akan dikirim ke lawan percakapan. Lanjutkan?'),
+        content: const Text(
+          'Pesan akan dikirim ke lawan percakapan. Lanjutkan?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Kirim')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Kirim'),
+          ),
         ],
       ),
     );
@@ -450,20 +487,26 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
 
   int get _activeSendConsultationId {
     if (_buyerConsultations.isEmpty) return widget.consultationId;
-    
-    final active = _buyerConsultations.where((c) => c.status != 'resolved' && c.status != 'rejected').toList();
+
+    final active = _buyerConsultations
+        .where((c) => c.status != 'resolved' && c.status != 'rejected')
+        .toList();
     if (active.isNotEmpty) {
       active.sort((a, b) => b.id.compareTo(a.id));
       return active.first.id;
     }
-    
+
     final sorted = List<ConsultationRequestModel>.from(_buyerConsultations);
     sorted.sort((a, b) => b.id.compareTo(a.id));
     return sorted.first.id;
   }
 
-  Future<void> _showStatusUpdateDialog(ConsultationRequestModel consultation) async {
-    final notesController = TextEditingController(text: consultation.staffNotes ?? '');
+  Future<void> _showStatusUpdateDialog(
+    ConsultationRequestModel consultation,
+  ) async {
+    final notesController = TextEditingController(
+      text: consultation.staffNotes ?? '',
+    );
     String selectedStatus = consultation.status;
 
     if (selectedStatus != 'pending' && selectedStatus != 'contacted') {
@@ -485,7 +528,10 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
               backgroundColor: const Color(0xFFFFF7ED),
               title: const Text(
                 'Tindak Lanjut Konsultasi',
-                style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF5E3210)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF5E3210),
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -494,7 +540,11 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                   children: [
                     const Text(
                       'Ubah Status:',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF4E3B2C)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: Color(0xFF4E3B2C),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
@@ -503,18 +553,38 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
                       ),
                       items: [
                         if (consultation.status == 'pending') ...[
-                          const DropdownMenuItem(value: 'pending', child: Text('Menunggu Persetujuan')),
-                          const DropdownMenuItem(value: 'contacted', child: Text('Setujui & Hubungi')),
-                          const DropdownMenuItem(value: 'rejected', child: Text('Tolak')),
+                          const DropdownMenuItem(
+                            value: 'pending',
+                            child: Text('Menunggu Persetujuan'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'contacted',
+                            child: Text('Setujui & Hubungi'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'rejected',
+                            child: Text('Tolak'),
+                          ),
                         ],
                         if (consultation.status == 'contacted') ...[
-                          const DropdownMenuItem(value: 'contacted', child: Text('Aktif (Sedang Dihubungi)')),
-                          const DropdownMenuItem(value: 'resolved', child: Text('Tandai Selesai')),
+                          const DropdownMenuItem(
+                            value: 'contacted',
+                            child: Text('Aktif (Sedang Dihubungi)'),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'resolved',
+                            child: Text('Tandai Selesai'),
+                          ),
                         ],
                       ],
                       onChanged: (val) {
@@ -528,7 +598,11 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                     const SizedBox(height: 14),
                     const Text(
                       'Catatan Tindak Lanjut Staf:',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF4E3B2C)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: Color(0xFF4E3B2C),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
@@ -538,7 +612,9 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                         hintText: 'Tulis catatan atau alasan di sini...',
                         filled: true,
                         fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ],
@@ -547,14 +623,21 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal', style: TextStyle(color: Color(0xFF8F4E1E))),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(color: Color(0xFF8F4E1E)),
+                  ),
                 ),
                 FilledButton(
                   onPressed: () async {
                     final notes = notesController.text.trim();
                     if (selectedStatus == 'rejected' && notes.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Catatan wajib diisi jika konsultasi ditolak.')),
+                        const SnackBar(
+                          content: Text(
+                            'Catatan wajib diisi jika konsultasi ditolak.',
+                          ),
+                        ),
                       );
                       return;
                     }
@@ -565,24 +648,31 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                       _isLoading = true;
                     });
 
-                    final res = await _consultationService.updateConsultationStatus(
-                      consultationId: consultation.id,
-                      status: selectedStatus,
-                      staffNotes: notes.isEmpty ? null : notes,
-                    );
+                    final res = await _consultationService
+                        .updateConsultationStatus(
+                          consultationId: consultation.id,
+                          status: selectedStatus,
+                          staffNotes: notes.isEmpty ? null : notes,
+                        );
 
                     if (!mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(_consultationService.parseMessage(res.body)),
-                        backgroundColor: res.statusCode < 300 ? const Color(0xFF8F4E1E) : const Color(0xFFC74C4C),
+                        content: Text(
+                          _consultationService.parseMessage(res.body),
+                        ),
+                        backgroundColor: res.statusCode < 300
+                            ? const Color(0xFF8F4E1E)
+                            : const Color(0xFFC74C4C),
                       ),
                     );
 
                     _loadConsultation();
                   },
-                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8F4E1E)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF8F4E1E),
+                  ),
                   child: const Text('Simpan'),
                 ),
               ],
@@ -597,14 +687,25 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
   Widget build(BuildContext context) {
     final consultation = _consultation;
     final chatEnabled =
-        consultation != null && (consultation.isContacted || consultation.isResolved);
+        consultation != null &&
+        (consultation.isContacted || consultation.isResolved);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5E3CF),
       appBar: chatEnabled
           ? null
           : AppBar(
-              title: const Text('Detail Konsultasi'),
+              title: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Detail Konsultasi', style: TextStyle(fontSize: 16)),
+                  Text(
+                    'Informasi percakapan konsultasi properti',
+                    style: TextStyle(fontSize: 11, height: 1.2),
+                  ),
+                ],
+              ),
               backgroundColor: const Color(0xFFF5E3CF),
             ),
       body: chatEnabled
@@ -644,11 +745,15 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
                   ? 'Customer Service'
                   : 'Calon Pembeli',
               onBack: () => Navigator.maybePop(context),
-              trailing: (_currentUserRole == 'staf' || _currentUserRole == 'admin') &&
+              trailing:
+                  (_currentUserRole == 'staf' || _currentUserRole == 'admin') &&
                       consultation.status != 'resolved' &&
                       consultation.status != 'rejected'
                   ? IconButton(
-                      icon: const Icon(Icons.done_all_rounded, color: Color(0xFFFFF7ED)),
+                      icon: const Icon(
+                        Icons.done_all_rounded,
+                        color: Color(0xFFFFF7ED),
+                      ),
                       tooltip: 'Tandai Selesai / Edit Catatan',
                       onPressed: () => _showStatusUpdateDialog(consultation),
                     )
@@ -798,11 +903,15 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
         const SizedBox(height: 14),
         _SectionCard(
           title: 'Tindak Lanjut Staf',
-          trailing: ((_currentUserRole == 'staf' || _currentUserRole == 'admin') &&
+          trailing:
+              ((_currentUserRole == 'staf' || _currentUserRole == 'admin') &&
                   consultation.status != 'resolved' &&
                   consultation.status != 'rejected')
               ? IconButton(
-                  icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF8F4E1E)),
+                  icon: const Icon(
+                    Icons.edit_note_rounded,
+                    color: Color(0xFF8F4E1E),
+                  ),
                   tooltip: 'Perbarui Catatan / Status',
                   onPressed: () => _showStatusUpdateDialog(consultation),
                 )
@@ -985,8 +1094,6 @@ class _ConsultationDetailPageState extends State<ConsultationDetailPage> {
   }
 }
 
-
-
 class _ChatDateDivider extends StatelessWidget {
   final String label;
 
@@ -1086,31 +1193,6 @@ class _ChatHeader extends StatelessWidget {
             if (trailing != null) trailing!,
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  const _HeaderIconButton({required this.icon, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFD9C5AF)),
-        ),
-        child: Icon(icon, color: const Color(0xFF8F4E1E), size: 14),
       ),
     );
   }
@@ -1249,7 +1331,11 @@ class _ChatInputBar extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF8F4E1E), size: 18),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                color: Color(0xFF8F4E1E),
+                size: 18,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1438,7 +1524,7 @@ class _ChatMediaPreview extends StatelessWidget {
           _url,
           width: 220,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const _MediaFallback(
+          errorBuilder: (_, _, _) => const _MediaFallback(
             icon: Icons.broken_image_rounded,
             label: 'Gambar gagal dimuat',
           ),
@@ -1520,7 +1606,10 @@ class _SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title!,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 if (trailing != null) trailing!,

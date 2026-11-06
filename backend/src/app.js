@@ -134,6 +134,10 @@ app.use('/api/admin/invoices', invoiceRoutes);
 const todoRoutes = require('./routes/todoRoutes');
 app.use('/api/todos', todoRoutes);
 
+const buyerRecordRoutes = require('./routes/buyerRecordRoutes');
+app.use('/api/admin/buyer-records', buyerRecordRoutes);
+
+
 app.use(errorHandler);
 
 // ─── Serve Flutter Web build ───────────────────────────────────────────────

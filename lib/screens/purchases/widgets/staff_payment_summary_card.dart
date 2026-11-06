@@ -19,12 +19,8 @@ class StaffPaymentSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accountNumber = order.paymentAccountNumber?.trim().isNotEmpty == true
-        ? order.paymentAccountNumber!.trim()
-        : '-';
-    final bankNote = order.paymentBankNote?.trim().isNotEmpty == true
-        ? order.paymentBankNote!.trim()
-        : 'Bank BCA';
+    final isQris = order.isQris;
+    final isCash = order.isCash;
 
     return Container(
       width: double.infinity,
@@ -39,10 +35,14 @@ class StaffPaymentSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Color(0xFF8E4E16),
-                size: 19,
+              Icon(
+                isQris
+                    ? Icons.qr_code_scanner_rounded
+                    : (isCash ? Icons.payments_rounded : Icons.account_balance_wallet_rounded),
+                color: isQris
+                    ? const Color(0xFF1E5FAF)
+                    : (isCash ? const Color(0xFF1F7A45) : const Color(0xFF8E4E16)),
+                size: 20,
               ),
               const SizedBox(width: 8),
               const Expanded(
@@ -55,7 +55,7 @@ class StaffPaymentSummaryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              StaffStatusBadge(status: order.status),
+              StaffStatusBadge(status: order.status, paymentMethod: order.paymentMethod),
             ],
           ),
           const SizedBox(height: 12),
@@ -63,15 +63,19 @@ class StaffPaymentSummaryCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E2A5A),
+              color: isQris
+                  ? const Color(0xFF1E5FAF)
+                  : (isCash ? const Color(0xFF1F7A45) : const Color(0xFF1E2A5A)),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Total Transfer',
-                  style: TextStyle(
+                Text(
+                  isQris
+                      ? 'Total Pembayaran QRIS'
+                      : (isCash ? 'Total Pembayaran Tunai' : 'Total Pembayaran'),
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFFE5E8FF),
@@ -91,35 +95,46 @@ class StaffPaymentSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _StaffPaymentRow(
-            label: 'Rekening',
-            value: accountNumber,
+            label: 'Metode Pembayaran',
+            value: isQris ? 'QRIS' : (isCash ? 'Cash Payment (Tunai di Kasir)' : order.paymentMethod),
             icon: Icons.credit_card_rounded,
-            trailing: accountNumber == '-'
-                ? null
-                : IconButton(
-                    tooltip: 'Salin rekening',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: accountNumber));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nomor rekening disalin')),
-                      );
-                    },
-                    icon: const Icon(Icons.copy_rounded, size: 18),
-                  ),
           ),
+          if (isQris) ...[
+            _StaffPaymentRow(
+              label: 'Order ID Transaksi',
+              value: order.midtransOrderId ?? 'Belum dibuat',
+              icon: Icons.tag_rounded,
+              trailing: (order.midtransOrderId ?? '').isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Salin Order ID',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: order.midtransOrderId!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Order ID disalin')),
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 16),
+                    ),
+            ),
+            _StaffPaymentRow(
+              label: 'Status Pembayaran',
+              value: order.isConfirmed
+                  ? 'Lunas'
+                  : (order.midtransPaymentStatus ?? 'Menunggu Scan'),
+              icon: Icons.verified_user_rounded,
+              valueColor: order.isConfirmed ? const Color(0xFF1F7A45) : const Color(0xFF1E5FAF),
+            ),
+          ] else ...[
+            const _StaffPaymentRow(
+              label: 'Lokasi Kasir',
+              value: 'Kantor Pemasaran Astana Karya',
+              icon: Icons.storefront_rounded,
+            ),
+          ],
           _StaffPaymentRow(
-            label: 'Atas Nama',
-            value: order.paymentAccountName ?? '-',
-            icon: Icons.person_rounded,
-          ),
-          _StaffPaymentRow(
-            label: 'Keterangan',
-            value: bankNote,
-            icon: Icons.storefront_rounded,
-          ),
-          _StaffPaymentRow(
-            label: 'Deadline',
+            label: 'Batas Pembayaran',
             value: formatDate(order.paymentDueAt),
             icon: Icons.schedule_rounded,
             valueColor: order.isCancelled
@@ -166,7 +181,7 @@ class _PaymentProofPreview extends StatelessWidget {
                 SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    'Bukti Pembayaran',
+                    'Kwitansi / Bukti Pembayaran',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
@@ -185,7 +200,7 @@ class _PaymentProofPreview extends StatelessWidget {
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   height: 92,
                   color: const Color(0xFFFFF3E7),
                   child: const Center(child: Text('Gagal memuat gambar')),
@@ -211,7 +226,7 @@ class _PaymentProofPreview extends StatelessWidget {
                 child: Image.network(
                   imageUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text(
+                  errorBuilder: (_, _, _) => const Text(
                     'Gagal memuat gambar',
                     style: TextStyle(color: Colors.white),
                   ),
@@ -288,16 +303,17 @@ class _StaffPaymentRow extends StatelessWidget {
 }
 
 class StaffStatusBadge extends StatelessWidget {
-  const StaffStatusBadge({super.key, required this.status});
+  const StaffStatusBadge({super.key, required this.status, this.paymentMethod});
 
   final String status;
+  final String? paymentMethod;
 
   @override
   Widget build(BuildContext context) {
-    final style = staffStatusStyle(status);
+    final style = staffStatusStyle(status, paymentMethod: paymentMethod);
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 130),
+      constraints: const BoxConstraints(maxWidth: 140),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: style.background,
@@ -330,7 +346,11 @@ class StaffStatusStyle {
   final Color foreground;
 }
 
-StaffStatusStyle staffStatusStyle(String status) {
+StaffStatusStyle staffStatusStyle(String status, {String? paymentMethod}) {
+  final isQris = (paymentMethod ?? '').toUpperCase().contains('QRIS');
+  final isCash = (paymentMethod ?? '').toLowerCase().contains('cash') ||
+      (paymentMethod ?? '').toLowerCase().contains('tunai');
+
   switch (status) {
     case 'confirmed':
       return const StaffStatusStyle(
@@ -363,6 +383,22 @@ StaffStatusStyle staffStatusStyle(String status) {
         foreground: Color(0xFF5E35B1),
       );
     default:
+      if (status == 'pending_payment') {
+        if (isQris) {
+          return const StaffStatusStyle(
+            label: 'Menunggu QRIS',
+            background: Color(0xFFE3EFFD),
+            foreground: Color(0xFF1E5FAF),
+          );
+        }
+        if (isCash) {
+          return const StaffStatusStyle(
+            label: 'Menunggu Kasir',
+            background: Color(0xFFFFF3D9),
+            foreground: Color(0xFF9A6700),
+          );
+        }
+      }
       return const StaffStatusStyle(
         label: 'Menunggu Bayar',
         background: Color(0xFFFFF3D9),

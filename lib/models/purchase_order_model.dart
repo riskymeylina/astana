@@ -1,6 +1,7 @@
 class PurchaseOrderModel {
   final int id;
-  final int buyerUserId;
+  final int? buyerUserId;
+  final int? buyerRecordId;
   final int propertyId;
   final String propertyTitle;
   final String propertyLocation;
@@ -24,12 +25,18 @@ class PurchaseOrderModel {
   final String? processedByName;
   final String? rejectionReason;
   final String? processedAt;
+  final String? midtransOrderId;
+  final String? midtransTransactionId;
+  final String? midtransQrUrl;
+  final String? midtransPaymentStatus;
+  final String? midtransExpiryTime;
   final String? createdAt;
   final String? updatedAt;
 
   const PurchaseOrderModel({
     required this.id,
-    required this.buyerUserId,
+    this.buyerUserId,
+    this.buyerRecordId,
     required this.propertyId,
     required this.propertyTitle,
     required this.propertyLocation,
@@ -53,22 +60,27 @@ class PurchaseOrderModel {
     required this.processedByName,
     required this.rejectionReason,
     required this.processedAt,
+    this.midtransOrderId,
+    this.midtransTransactionId,
+    this.midtransQrUrl,
+    this.midtransPaymentStatus,
+    this.midtransExpiryTime,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory PurchaseOrderModel.fromJson(Map<String, dynamic> json) {
     final id = _toInt(json['id'] ?? json['id_purchase']);
-    final buyerUserId = _toInt(json['buyerUserId'] ?? json['buyer_user_id']);
     final propertyId = _toInt(json['propertyId'] ?? json['property_id']);
 
-    if (id == null || buyerUserId == null || propertyId == null) {
+    if (id == null || propertyId == null) {
       throw const FormatException('Data pemesanan tidak valid');
     }
 
     return PurchaseOrderModel(
       id: id,
-      buyerUserId: buyerUserId,
+      buyerUserId: _toInt(json['buyerUserId'] ?? json['buyer_user_id']),
+      buyerRecordId: _toInt(json['buyerRecordId'] ?? json['buyer_record_id']),
       propertyId: propertyId,
       propertyTitle: _toText(json['propertyTitle']),
       propertyLocation: _toText(json['propertyLocation']),
@@ -92,6 +104,11 @@ class PurchaseOrderModel {
       processedByName: _toOptionalText(json['processedByName']),
       rejectionReason: _toOptionalText(json['rejectionReason']),
       processedAt: _toOptionalText(json['processedAt']),
+      midtransOrderId: _toOptionalText(json['midtransOrderId'] ?? json['midtrans_order_id']),
+      midtransTransactionId: _toOptionalText(json['midtransTransactionId'] ?? json['midtrans_transaction_id']),
+      midtransQrUrl: _toOptionalText(json['midtransQrUrl'] ?? json['midtrans_qr_url']),
+      midtransPaymentStatus: _toOptionalText(json['midtransPaymentStatus'] ?? json['midtrans_payment_status']),
+      midtransExpiryTime: _toOptionalText(json['midtransExpiryTime'] ?? json['midtrans_expiry_time']),
       createdAt: _toOptionalText(json['createdAt']),
       updatedAt: _toOptionalText(json['updatedAt']),
     );
@@ -103,7 +120,7 @@ class PurchaseOrderModel {
   double? get totalPrice => paymentAmount > 0 ? paymentAmount : propertyPrice;
 
   // Modifikasi & Penambahan Alias Baru Agar Sinkron dengan Halaman Detail & Sales Report
-  String? get propertyType => null; // Kembalikan null jika tipe tidak ada di backend, atau pasang default String jika perlu
+  String? get propertyType => null;
   String? get propertyImageUrl => propertyThumbnailUrl;
   String? get propertyLandArea => null;
   String? get propertyBuildingArea => null;
@@ -125,7 +142,13 @@ class PurchaseOrderModel {
   bool get isConfirmed => status == 'confirmed';
   bool get isRejected => status == 'rejected';
   bool get isCancelled => status == 'cancelled';
-  bool get canUploadProof => isPendingPayment || isRejected;
+  bool get isQris => paymentMethod.toUpperCase().contains('QRIS');
+  bool get isCash =>
+      paymentMethod.toLowerCase().contains('cash') ||
+      paymentMethod.toLowerCase().contains('tunai');
+  bool get isQrisSettled =>
+      (midtransPaymentStatus?.toLowerCase() == 'settlement') || isConfirmed;
+  bool get canUploadProof => (isPendingPayment || isRejected) && isCash;
   bool get isActive => !isConfirmed && !isRejected && !isCancelled;
   double get payableAmount => paymentAmount > 0 ? paymentAmount : propertyPrice;
 

@@ -58,6 +58,7 @@ class PurchaseService {
 
   Future<ApiResponse> getAllOrders({
     String? status,
+    String? search,
     DateTime? from,
     DateTime? to,
     int? month,
@@ -72,6 +73,7 @@ class PurchaseService {
     try {
       final params = <String, String>{};
       if (status?.trim().isNotEmpty ?? false) params['status'] = status!.trim();
+      if (search?.trim().isNotEmpty ?? false) params['search'] = search!.trim();
       if (from != null) params['from'] = _date(from);
       if (to != null) params['to'] = _date(to);
       if (month != null) params['month'] = month.toString();
@@ -93,6 +95,36 @@ class PurchaseService {
     try {
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/$purchaseId'),
+        headers: _headers(token),
+      );
+      return ApiResponse(statusCode: response.statusCode, body: response.body);
+    } catch (_) {
+      return _networkErrorResponse();
+    }
+  }
+
+  Future<ApiResponse> checkMidtransStatus(int purchaseId) async {
+    final token = _getToken();
+    if (token == null) return _unauthorizedResponse();
+
+    try {
+      final response = await http.get(
+        Uri.parse('$_apiBaseUrl/$purchaseId/midtrans-status'),
+        headers: _headers(token),
+      );
+      return ApiResponse(statusCode: response.statusCode, body: response.body);
+    } catch (_) {
+      return _networkErrorResponse();
+    }
+  }
+
+  Future<ApiResponse> simulateMidtransPayment(int purchaseId) async {
+    final token = _getToken();
+    if (token == null) return _unauthorizedResponse();
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/$purchaseId/simulate-payment'),
         headers: _headers(token),
       );
       return ApiResponse(statusCode: response.statusCode, body: response.body);

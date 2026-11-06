@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-const Color _kBrown = Color(0xFF8B3E0F);
 const Color _kBrownLight = Color(0xFFFFF0E6);
 const Color _kBeige = Color(0xFFF5EDE0);
 
@@ -62,43 +62,59 @@ class AuthPageScaffold extends StatelessWidget {
       height: 1.5,
     );
 
-    Widget topSection;
-    double panelOffset;
+    if (kIsWeb && size.width >= 900) {
+      return _buildDesktopLayout(
+        context,
+        backgroundColor: bgColor,
+        titleStyle: titleStyle,
+        subtitleStyle: subtitleStyle,
+      );
+    }
 
+    Widget topSection;
     if (hasImage) {
       final imgH = height * topImageFraction;
-      final imgFrac = panelTopFraction;
-      panelOffset = height * imgFrac;
-
+      const panelOverlap = 24.0;
       topSection = SizedBox(
-        height: imgH,
+        height: imgH - panelOverlap,
         width: double.infinity,
         child: Stack(
-          fit: StackFit.expand,
+          clipBehavior: Clip.none,
           children: [
-            Image.asset(
-              headerImagePath!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF5A2A0D), Color(0xFF8B3E0F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: imgH,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    headerImagePath!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF5A2A0D), Color(0xFF8B3E0F)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withOpacity(0.15),
-                    Colors.black.withOpacity(0.05),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.15),
+                          Colors.black.withValues(alpha: 0.05),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -106,8 +122,6 @@ class AuthPageScaffold extends StatelessWidget {
       );
     } else if (hasIllustration) {
       final illustH = height * 0.30;
-      panelOffset = illustH - 24;
-
       topSection = Container(
         height: illustH,
         width: double.infinity,
@@ -130,7 +144,6 @@ class AuthPageScaffold extends StatelessWidget {
         ),
       );
     } else {
-      panelOffset = 0;
       topSection = const SizedBox.shrink();
     }
 
@@ -141,7 +154,7 @@ class AuthPageScaffold extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(panelRadius)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -164,35 +177,21 @@ class AuthPageScaffold extends StatelessWidget {
               ),
             ),
           ),
-          if (header != null) ...[
-            header!,
-            const SizedBox(height: 20),
-          ],
+          if (header != null) ...[header!, const SizedBox(height: 20)],
           SizedBox(
             width: double.infinity,
             child: Column(
               crossAxisAlignment: titleAlignment,
               children: [
-                Text(
-                  title,
-                  textAlign: titleTextAlign,
-                  style: titleStyle,
-                ),
+                Text(title, textAlign: titleTextAlign, style: titleStyle),
                 const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  textAlign: titleTextAlign,
-                  style: subtitleStyle,
-                ),
+                Text(subtitle, textAlign: titleTextAlign, style: subtitleStyle),
               ],
             ),
           ),
           const SizedBox(height: 28),
           child,
-          if (footer != null) ...[
-            const SizedBox(height: 16),
-            footer!,
-          ],
+          if (footer != null) ...[const SizedBox(height: 16), footer!],
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
       ),
@@ -208,12 +207,7 @@ class AuthPageScaffold extends StatelessWidget {
             bottom: false,
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
-              child: Column(
-                children: [
-                  topSection,
-                  panelContent,
-                ],
-              ),
+              child: Column(children: [topSection, panelContent]),
             ),
           ),
           // Back button overlay
@@ -230,12 +224,13 @@ class AuthPageScaffold extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (overlayButtonColor ?? Colors.white)
-                            .withOpacity(0.92),
+                        color: (overlayButtonColor ?? Colors.white).withValues(
+                          alpha: 0.92,
+                        ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 8,
                           ),
                         ],
@@ -254,6 +249,221 @@ class AuthPageScaffold extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    BuildContext context, {
+    required Color backgroundColor,
+    required TextStyle? titleStyle,
+    required TextStyle? subtitleStyle,
+  }) {
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1120),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6F3212).withValues(alpha: 0.12),
+                      blurRadius: 44,
+                      offset: const Offset(0, 16),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          flex: 11,
+                          child: const _DesktopAuthImagePanel(),
+                        ),
+                        Expanded(
+                          flex: 10,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 48,
+                              vertical: 44,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (showBackButton) ...[
+                                  IconButton(
+                                    onPressed:
+                                        onBack ??
+                                        () => Navigator.maybePop(context),
+                                    tooltip: 'Kembali',
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: const Color(0xFFF7F2EC),
+                                      foregroundColor: const Color(0xFF4A1F09),
+                                    ),
+                                    icon: const Icon(Icons.arrow_back_rounded),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Column(
+                                    crossAxisAlignment: titleAlignment,
+                                    children: [
+                                      Text(
+                                        title,
+                                        textAlign: titleTextAlign,
+                                        style: titleStyle?.copyWith(
+                                          fontSize: 30,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        subtitle,
+                                        textAlign: titleTextAlign,
+                                        style: subtitleStyle?.copyWith(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                child,
+                                if (footer != null) ...[
+                                  const SizedBox(height: 22),
+                                  footer!,
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopAuthImagePanel extends StatelessWidget {
+  const _DesktopAuthImagePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/prambanan_tipe_65.jpg',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF4A1F09), Color(0xFF8B3E0F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+        ),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x33000000), Color(0xAA000000)],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 32,
+          right: 24,
+          top: 28,
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/logo.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.apartment_rounded,
+                      color: Color(0xFF713910),
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'PT. ASTANA KARYA\nBANDAWASA',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 36,
+          right: 32,
+          bottom: 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Temukan hunian yang tepat untuk masa depan Anda.',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Hunian berkualitas, investasi masa depan.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

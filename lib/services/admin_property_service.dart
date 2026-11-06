@@ -130,20 +130,6 @@ class AdminPropertyService {
     return token.isEmpty ? null : token;
   }
 
-  /// Token yang menerima admin DAN staf — digunakan untuk endpoint baca saja.
-  String? _tokenForRead() {
-    final session = AuthService().getSession();
-    if ((session?['sessionState'] ?? '').toString() != SessionState.verified) {
-      return null;
-    }
-    final role = (session?['role'] ?? '').toString();
-    if (role != UserRoles.admin && role != UserRoles.staf) {
-      return null;
-    }
-    final token = (session?['token'] ?? '').toString();
-    return token.isEmpty ? null : token;
-  }
-
   MediaType _contentTypeFor(String filename) {
     final ext = filename.toLowerCase().split('.').last;
     switch (ext) {

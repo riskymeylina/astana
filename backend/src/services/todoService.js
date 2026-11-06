@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 
 async function getTodos(userId, filterDate) {
-  let query = `SELECT id, user_id, title, description, status, due_date, created_at, updated_at FROM todo_lists WHERE user_id = ?`;
+  let query = `SELECT id_todo_list AS id, user_id, title, description, status, due_date, created_at, updated_at FROM todo_lists WHERE user_id = ?`;
   const params = [userId];
 
   if (filterDate) {
@@ -33,20 +33,20 @@ async function createTodo(userId, title, description, dueDate) {
 }
 
 async function getTodoById(id) {
-  const [rows] = await pool.query(`SELECT id, user_id, title, description, status, due_date, created_at, updated_at FROM todo_lists WHERE id = ?`, [id]);
+  const [rows] = await pool.query(`SELECT id_todo_list AS id, user_id, title, description, status, due_date, created_at, updated_at FROM todo_lists WHERE id_todo_list = ?`, [id]);
   return rows[0] || null;
 }
 
 async function updateTodo(id, title, description, dueDate, status) {
   await pool.query(
-    `UPDATE todo_lists SET title = ?, description = ?, due_date = ?, status = ? WHERE id = ?`,
+    `UPDATE todo_lists SET title = ?, description = ?, due_date = ?, status = ? WHERE id_todo_list = ?`,
     [title, description || null, dueDate || null, status, id]
   );
   return getTodoById(id);
 }
 
 async function deleteTodo(id) {
-  await pool.query(`DELETE FROM todo_lists WHERE id = ?`, [id]);
+  await pool.query(`DELETE FROM todo_lists WHERE id_todo_list = ?`, [id]);
 }
 
 module.exports = {

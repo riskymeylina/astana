@@ -2,6 +2,8 @@ class SurveyRequestModel {
   final int id;
   final int buyerUserId;
   final String buyerName;
+  final String? buyerPhone;
+  final String? buyerEmail;
   final int propertyId;
   final String propertyTitle;
   final String propertyLocation;
@@ -15,6 +17,7 @@ class SurveyRequestModel {
   final String? rejectionReason;
   final int? processedByUserId;
   final String? processedByName;
+  final String? processedByPhone;
   final String? processedAt;
   final String? createdAt;
   final String? updatedAt;
@@ -23,6 +26,8 @@ class SurveyRequestModel {
     required this.id,
     required this.buyerUserId,
     required this.buyerName,
+    this.buyerPhone,
+    this.buyerEmail,
     required this.propertyId,
     required this.propertyTitle,
     required this.propertyLocation,
@@ -36,6 +41,7 @@ class SurveyRequestModel {
     required this.rejectionReason,
     required this.processedByUserId,
     required this.processedByName,
+    this.processedByPhone,
     required this.processedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -54,6 +60,8 @@ class SurveyRequestModel {
       id: id,
       buyerUserId: buyerUserId,
       buyerName: _toText(json['buyerName']),
+      buyerPhone: _toOptionalText(json['buyerPhone'] ?? json['buyer_phone']),
+      buyerEmail: _toOptionalText(json['buyerEmail'] ?? json['buyer_email']),
       propertyId: propertyId,
       propertyTitle: _toText(json['propertyTitle']),
       propertyLocation: _toText(json['propertyLocation']),
@@ -67,6 +75,7 @@ class SurveyRequestModel {
       rejectionReason: _toOptionalText(json['rejectionReason']),
       processedByUserId: _toInt(json['processedByUserId']),
       processedByName: _toOptionalText(json['processedByName']),
+      processedByPhone: _toOptionalText(json['processedByPhone'] ?? json['processed_by_phone']),
       processedAt: _toOptionalText(json['processedAt']),
       createdAt: _toOptionalText(json['createdAt']),
       updatedAt: _toOptionalText(json['updatedAt']),
@@ -77,6 +86,7 @@ class SurveyRequestModel {
   bool get isApproved => status == 'approved';
   bool get isCompleted => status == 'completed';
   bool get isRejected => status == 'rejected';
+  bool get isCancelled => status == 'cancelled';
 
   static int? _toInt(dynamic value) {
     if (value == null) {

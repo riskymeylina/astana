@@ -79,19 +79,25 @@ String _statusLabel(String status) {
 }
 
 bool _matchesActiveFilter(String activeFilter, String propertyStatus) {
-  if (activeFilter == 'semua') return true;
-  final act = activeFilter.toLowerCase();
-  final pStat = propertyStatus.toLowerCase();
-  if (act == 'available' || act == 'tersedia') {
-    return pStat == 'available' || pStat == 'tersedia';
+  String normalizeStatus(String status) {
+    final normalized = status.trim().toLowerCase().replaceAll(
+      RegExp(r'\s+'),
+      ' ',
+    );
+    if (normalized == 'available' || normalized == 'tersedia') {
+      return 'tersedia';
+    }
+    if (normalized == 'booking' || normalized == 'sedang dibooking') {
+      return 'booking';
+    }
+    if (normalized == 'sold' || normalized == 'terjual') {
+      return 'terjual';
+    }
+    return normalized;
   }
-  if (act == 'booking' || act == 'sedang dibooking') {
-    return pStat == 'booking' || pStat == 'sedang dibooking';
-  }
-  if (act == 'sold' || act == 'terjual') {
-    return pStat == 'sold' || pStat == 'terjual';
-  }
-  return false;
+
+  final filter = normalizeStatus(activeFilter);
+  return filter == 'semua' || filter == normalizeStatus(propertyStatus);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -113,7 +119,9 @@ class _MarketingPropertyAvailabilityPageState
   bool _isLoading = true;
   String? _errorMessage;
   List<PropertyModel> _allProperties = const [];
-  String _activeFilter = 'semua'; // 'semua' | 'tersedia' | 'hampirHabis' | 'tidakTersedia'
+  String _activeFilter = 'semua';
+  String _activeCategory = 'semua';
+  String _sortBy = 'default';
   String _searchQuery = '';
 
   // Pagination
@@ -149,30 +157,66 @@ class _MarketingPropertyAvailabilityPageState
       return;
     }
 
+    final properties = _propertyService.parseProperties(response.body);
     setState(() {
-      _allProperties = _propertyService.parseProperties(response.body);
+      _allProperties = properties;
+      if (_activeCategory != 'semua' &&
+          !properties.any((property) => property.category == _activeCategory)) {
+        _activeCategory = 'semua';
+      }
       _isLoading = false;
       _currentPage = 1;
     });
   }
 
   List<PropertyModel> get _filteredProperties {
-    var list = _allProperties.where((p) {
-      // Filter status
-      if (!_matchesActiveFilter(_activeFilter, p.status)) {
+    final queryTerms = _searchQuery
+        .trim()
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty);
+    final filtered = _allProperties.where((property) {
+      if (!_matchesActiveFilter(_activeFilter, property.status)) return false;
+      if (_activeCategory != 'semua' && property.category != _activeCategory) {
         return false;
       }
-      // Filter pencarian
-      if (_searchQuery.trim().isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        return p.title.toLowerCase().contains(q) || p.location.toLowerCase().contains(q);
-      }
-      return true;
+      if (queryTerms.isEmpty) return true;
+
+      final searchableValues = [
+        property.title,
+        property.location,
+        property.category,
+        property.status,
+        property.statusLabel,
+        property.price.toString(),
+        NumberFormat('#,##0', 'id_ID').format(property.price),
+      ].join(' ').toLowerCase();
+      return queryTerms.every(searchableValues.contains);
     }).toList();
-    return list;
+
+    switch (_sortBy) {
+      case 'name':
+        filtered.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+      case 'price_low':
+        filtered.sort((a, b) => a.price.compareTo(b.price));
+      case 'price_high':
+        filtered.sort((a, b) => b.price.compareTo(a.price));
+      case 'latest':
+        filtered.sort((a, b) {
+          final aUpdated = DateTime.tryParse(a.updatedAt ?? '');
+          final bUpdated = DateTime.tryParse(b.updatedAt ?? '');
+          if (aUpdated == null) return bUpdated == null ? 0 : 1;
+          if (bUpdated == null) return -1;
+          return bUpdated.compareTo(aUpdated);
+        });
+    }
+    return filtered;
   }
 
-  int get _totalPages => (_filteredProperties.length / _perPage).ceil().clamp(1, 9999);
+  int get _totalPages =>
+      (_filteredProperties.length / _perPage).ceil().clamp(1, 9999);
 
   List<PropertyModel> get _pagedProperties {
     final all = _filteredProperties;
@@ -184,15 +228,126 @@ class _MarketingPropertyAvailabilityPageState
 
   int _countByFilter(String filter) {
     if (filter == 'semua') return _allProperties.length;
-    return _allProperties.where((p) => _matchesActiveFilter(filter, p.status)).length;
+    return _allProperties
+        .where((p) => _matchesActiveFilter(filter, p.status))
+        .length;
   }
 
-  void _setFilter(String filter) {
-    if (_activeFilter == filter) return;
-    setState(() {
-      _activeFilter = filter;
-      _currentPage = 1;
-    });
+  int get _activeFilterCount =>
+      (_activeFilter == 'semua' ? 0 : 1) +
+      (_activeCategory == 'semua' ? 0 : 1) +
+      (_sortBy == 'default' ? 0 : 1);
+
+  List<String> get _availableCategories {
+    final categories =
+        _allProperties
+            .map((property) => property.category.trim())
+            .where((category) => category.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return categories;
+  }
+
+  Future<void> _showFilterDialog() async {
+    var selectedStatus = _activeFilter;
+    var selectedCategory = _activeCategory;
+    var selectedSortBy = _sortBy;
+    final categories = _availableCategories;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(
+            'Filter Properti',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _FilterDropdown(
+                  label: 'Status',
+                  value: selectedStatus,
+                  options: const [
+                    ('semua', 'Semua status'),
+                    ('Tersedia', 'Tersedia'),
+                    ('Sedang Dibooking', 'Booking'),
+                    ('Terjual', 'Terjual'),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedStatus = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Tipe Properti',
+                  value: selectedCategory,
+                  options: [
+                    const ('semua', 'Semua tipe'),
+                    ...categories.map((category) => (category, category)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedCategory = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Urutkan',
+                  value: selectedSortBy,
+                  options: const [
+                    ('default', 'Urutan bawaan'),
+                    ('latest', 'Pembaruan terbaru'),
+                    ('name', 'Nama A–Z'),
+                    ('price_low', 'Harga terendah'),
+                    ('price_high', 'Harga tertinggi'),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedSortBy = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setDialogState(() {
+                  selectedStatus = 'semua';
+                  selectedCategory = 'semua';
+                  selectedSortBy = 'default';
+                });
+              },
+              child: const Text('Atur Ulang'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF8F4E1E),
+              ),
+              onPressed: () {
+                setState(() {
+                  _activeFilter = selectedStatus;
+                  _activeCategory = selectedCategory;
+                  _sortBy = selectedSortBy;
+                  _currentPage = 1;
+                });
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Terapkan'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _setPage(int page) {
@@ -208,7 +363,9 @@ class _MarketingPropertyAvailabilityPageState
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -219,23 +376,29 @@ class _MarketingPropertyAvailabilityPageState
               const SizedBox(height: 4),
               Text(
                 property.title,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF7A6552), fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF7A6552),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: statusOptions.map((status) {
-              final optionStatus = _resolveStatus(PropertyModel(
-                id: property.id,
-                title: property.title,
-                category: property.category,
-                location: property.location,
-                price: property.price,
-                status: status,
-                statusLabel: _statusLabel(status),
-                gallery: property.gallery,
-              ));
+              final optionStatus = _resolveStatus(
+                PropertyModel(
+                  id: property.id,
+                  title: property.title,
+                  category: property.category,
+                  location: property.location,
+                  price: property.price,
+                  status: status,
+                  statusLabel: _statusLabel(status),
+                  gallery: property.gallery,
+                ),
+              );
               final isSelected = selected == status;
               return GestureDetector(
                 onTap: () => setDialogState(() => selected = status),
@@ -243,10 +406,14 @@ class _MarketingPropertyAvailabilityPageState
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected ? optionStatus.badgeBg : const Color(0xFFFAF5EF),
+                    color: isSelected
+                        ? optionStatus.badgeBg
+                        : const Color(0xFFFAF5EF),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? optionStatus.dotColor : const Color(0xFFE9D7BF),
+                      color: isSelected
+                          ? optionStatus.dotColor
+                          : const Color(0xFFE9D7BF),
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -266,12 +433,18 @@ class _MarketingPropertyAvailabilityPageState
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? optionStatus.badgeFg : const Color(0xFF3A2B1F),
+                          color: isSelected
+                              ? optionStatus.badgeFg
+                              : const Color(0xFF3A2B1F),
                         ),
                       ),
                       const Spacer(),
                       if (isSelected)
-                        Icon(Icons.check_circle_rounded, color: optionStatus.dotColor, size: 18),
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: optionStatus.dotColor,
+                          size: 18,
+                        ),
                     ],
                   ),
                 ),
@@ -284,7 +457,9 @@ class _MarketingPropertyAvailabilityPageState
               child: const Text('Batal'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8F4E1E)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF8F4E1E),
+              ),
               onPressed: () {
                 Navigator.pop(ctx);
                 _updatePropertyStatus(property, selected);
@@ -297,8 +472,14 @@ class _MarketingPropertyAvailabilityPageState
     );
   }
 
-  Future<void> _updatePropertyStatus(PropertyModel property, String status) async {
-    final response = await _propertyService.updatePropertyStatus(property.id, status);
+  Future<void> _updatePropertyStatus(
+    PropertyModel property,
+    String status,
+  ) async {
+    final response = await _propertyService.updatePropertyStatus(
+      property.id,
+      status,
+    );
     if (!mounted) return;
 
     final message = _propertyService.parseMessage(response.body);
@@ -325,6 +506,7 @@ class _MarketingPropertyAvailabilityPageState
     return Scaffold(
       backgroundColor: const Color(0xFFF8F3EC),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const BragaPageHeader(
             title: 'Ketersediaan Properti',
@@ -342,14 +524,14 @@ class _MarketingPropertyAvailabilityPageState
               child: _buildBody(),
             ),
           ),
-          if (!_isLoading && _errorMessage == null && _filteredProperties.isNotEmpty)
+          if (!_isLoading &&
+              _errorMessage == null &&
+              _filteredProperties.isNotEmpty)
             _buildPaginationBar(),
         ],
       ),
     );
   }
-
-
 
   // ── SUMMARY STATS (4 KOLOM) ────────────────────────────────────
   Widget _buildSummaryStats() {
@@ -360,33 +542,25 @@ class _MarketingPropertyAvailabilityPageState
 
     final stats = [
       _StatItem(
-        icon: Icons.home_rounded,
-        iconBg: const Color(0xFFFFF0E0),
-        iconColor: const Color(0xFFCB7D2A),
+        valueColor: const Color(0xFF6F3212),
         count: total,
         label: 'Total Properti',
         sublabel: 'Semua properti terdaftar',
       ),
       _StatItem(
-        icon: Icons.check_circle_rounded,
-        iconBg: const Color(0xFFE6F7EE),
-        iconColor: const Color(0xFF3DAA6E),
+        valueColor: const Color(0xFF16794C),
         count: tersedia,
         label: 'Tersedia',
         sublabel: 'Siap dijual',
       ),
       _StatItem(
-        icon: Icons.hourglass_bottom_rounded,
-        iconBg: const Color(0xFFFFF3D9),
-        iconColor: const Color(0xFFE9A800),
+        valueColor: const Color(0xFFC78928),
         count: booking,
         label: 'Booking',
         sublabel: 'Sedang dipesan',
       ),
       _StatItem(
-        icon: Icons.sell_rounded,
-        iconBg: const Color(0xFFFCE8E6),
-        iconColor: const Color(0xFFD94F3D),
+        valueColor: const Color(0xFFD94F3D),
         count: sold,
         label: 'Terjual',
         sublabel: 'Sudah selesai',
@@ -401,47 +575,50 @@ class _MarketingPropertyAvailabilityPageState
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE9D7BF)),
         boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Row(
         children: stats.map((stat) {
           return Expanded(
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: stat.iconBg,
-                    borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${stat.count}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: stat.valueColor,
+                    ),
                   ),
-                  child: Icon(stat.icon, color: stat.iconColor, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${stat.count}',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF2A1A0E)),
-                      ),
-                      Text(
-                        stat.label,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF2A1A0E)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        stat.sublabel,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF9A8070)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  Text(
+                    stat.label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF2A1A0E),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    stat.sublabel,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF9A8070),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -449,113 +626,90 @@ class _MarketingPropertyAvailabilityPageState
     );
   }
 
-  // ── FILTER TAB + SEARCH ────────────────────────────────────────
+  // ── SEARCH + FILTER ────────────────────────────────────────────
   Widget _buildFilterAndSearch() {
-    final filters = [
-      ('semua', 'Semua', _countByFilter('semua')),
-      ('Tersedia', 'Tersedia', _countByFilter('Tersedia')),
-      ('Sedang Dibooking', 'Booking', _countByFilter('Sedang Dibooking')),
-      ('Terjual', 'Terjual', _countByFilter('Terjual')),
-    ];
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      child: Row(
-        children: [
-          // Filter chips
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: filters.map((f) {
-                  final key = f.$1;
-                  final label = f.$2;
-                  final count = f.$3;
-                  final isActive = _activeFilter == key;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => _setFilter(key),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                        decoration: BoxDecoration(
-                          color: isActive ? const Color(0xFF8F4E1E) : Colors.white,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: isActive ? const Color(0xFF8F4E1E) : const Color(0xFFE0CCBA),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        width: double.infinity,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFE0CCBA)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 16),
+            const Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: Color(0xFF9A8070),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) => setState(() {
+                  _searchQuery = value;
+                  _currentPage = 1;
+                }),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF3A2B1F)),
+                decoration: InputDecoration(
+                  hintText: 'Cari properti, lokasi, tipe, atau status...',
+                  hintStyle: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFBBA899),
+                  ),
+                  suffixIcon: _searchQuery.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Hapus pencarian',
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                              _currentPage = 1;
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 17,
+                            color: Color(0xFF9A8070),
                           ),
-                          boxShadow: isActive
-                              ? [const BoxShadow(color: Color(0x228F4E1E), blurRadius: 8, offset: Offset(0, 2))]
-                              : [],
                         ),
-                        child: Row(
-                          children: [
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: isActive ? Colors.white : const Color(0xFF5A3A22),
-                              ),
-                            ),
-                            if (count > 0) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: isActive ? Colors.white.withOpacity(0.25) : const Color(0xFFE7CCAE),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '$count',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: isActive ? Colors.white : const Color(0xFF8F4E1E),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(width: 1, height: 24, color: const Color(0xFFEFE5DB)),
+            SizedBox(
+              width: 112,
+              height: double.infinity,
+              child: TextButton.icon(
+                onPressed: _showFilterDialog,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF6F3212),
+                  padding: EdgeInsets.zero,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(999),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: const Text(
+                  'Filter',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Search bar
-          Container(
-            width: 220,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE0CCBA)),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) => setState(() {
-                _searchQuery = v;
-                _currentPage = 1;
-              }),
-              style: const TextStyle(fontSize: 13, color: Color(0xFF3A2B1F)),
-              decoration: const InputDecoration(
-                hintText: 'Cari nama properti atau lokasi...',
-                hintStyle: TextStyle(fontSize: 12, color: Color(0xFFBBA899)),
-                prefixIcon: Icon(Icons.search_rounded, size: 18, color: Color(0xFF9A8070)),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
-                isDense: true,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -563,7 +717,9 @@ class _MarketingPropertyAvailabilityPageState
   // ── BODY ───────────────────────────────────────────────────────
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF8F4E1E)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8F4E1E)),
+      );
     }
 
     if (_errorMessage != null) {
@@ -578,7 +734,9 @@ class _MarketingPropertyAvailabilityPageState
             title: 'Gagal memuat properti',
             message: _errorMessage!,
             action: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8F4E1E)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF8F4E1E),
+              ),
               onPressed: _loadProperties,
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Coba lagi'),
@@ -597,10 +755,10 @@ class _MarketingPropertyAvailabilityPageState
             icon: Icons.home_work_rounded,
             iconColor: const Color(0xFF8F4E1E),
             iconBg: const Color(0xFFFFF0E0),
-            title: _searchQuery.isNotEmpty || _activeFilter != 'semua'
+            title: _searchQuery.isNotEmpty || _activeFilterCount > 0
                 ? 'Tidak ada properti ditemukan'
                 : 'Belum ada properti tersedia',
-            message: _searchQuery.isNotEmpty || _activeFilter != 'semua'
+            message: _searchQuery.isNotEmpty || _activeFilterCount > 0
                 ? 'Coba ubah filter atau kata kunci pencarian Anda.'
                 : 'Data properti aktif akan muncul di sini.',
           ),
@@ -612,13 +770,17 @@ class _MarketingPropertyAvailabilityPageState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       itemCount: _pagedProperties.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final property = _pagedProperties[index];
         return _PropertyCard(
           property: property,
           status: _resolveStatus(property),
-          onDetail: () => Navigator.pushNamed(context, '/property-detail', arguments: property.id),
+          onDetail: () => Navigator.pushNamed(
+            context,
+            '/property-detail',
+            arguments: property.id,
+          ),
           onUbahStatus: () => _showUbahStatusDialog(property),
         );
       },
@@ -644,7 +806,11 @@ class _MarketingPropertyAvailabilityPageState
         children: [
           Text(
             'Menampilkan $startItem – $endItem dari $total properti',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF7A6552), fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF7A6552),
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const Spacer(),
           // Tombol prev
@@ -659,7 +825,13 @@ class _MarketingPropertyAvailabilityPageState
             if (p == null) {
               return const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('...', style: TextStyle(color: Color(0xFF9A8070), fontWeight: FontWeight.w700)),
+                child: Text(
+                  '...',
+                  style: TextStyle(
+                    color: Color(0xFF9A8070),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               );
             }
             final isActive = p == _currentPage;
@@ -672,10 +844,14 @@ class _MarketingPropertyAvailabilityPageState
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF8F4E1E) : Colors.transparent,
+                    color: isActive
+                        ? const Color(0xFF8F4E1E)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isActive ? const Color(0xFF8F4E1E) : const Color(0xFFE0CCBA),
+                      color: isActive
+                          ? const Color(0xFF8F4E1E)
+                          : const Color(0xFFE0CCBA),
                     ),
                   ),
                   child: Center(
@@ -684,7 +860,9 @@ class _MarketingPropertyAvailabilityPageState
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: isActive ? Colors.white : const Color(0xFF5A3A22),
+                        color: isActive
+                            ? Colors.white
+                            : const Color(0xFF5A3A22),
                       ),
                     ),
                   ),
@@ -717,7 +895,11 @@ class _MarketingPropertyAvailabilityPageState
     if (total <= 7) return List.generate(total, (i) => i + 1);
     final pages = <int?>[1];
     if (current > 3) pages.add(null);
-    for (int i = (current - 1).clamp(2, total - 1); i <= (current + 1).clamp(2, total - 1); i++) {
+    for (
+      int i = (current - 1).clamp(2, total - 1);
+      i <= (current + 1).clamp(2, total - 1);
+      i++
+    ) {
       pages.add(i);
     }
     if (current < total - 2) pages.add(null);
@@ -743,7 +925,8 @@ class _PropertyCard extends StatelessWidget {
   });
 
   String get _imageUrl {
-    if (property.gallery.isNotEmpty && property.gallery.first.imageUrl.isNotEmpty) {
+    if (property.gallery.isNotEmpty &&
+        property.gallery.first.imageUrl.isNotEmpty) {
       return property.gallery.first.imageUrl;
     }
     return '';
@@ -768,7 +951,11 @@ class _PropertyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE9D7BF)),
         boxShadow: const [
-          BoxShadow(color: Color(0x07000000), blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0x07000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: IntrinsicHeight(
@@ -787,7 +974,7 @@ class _PropertyCard extends StatelessWidget {
                     ? Image.network(
                         _imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _PhotoPlaceholder(),
+                        errorBuilder: (_, _, _) => _PhotoPlaceholder(),
                       )
                     : _PhotoPlaceholder(),
               ),
@@ -815,12 +1002,19 @@ class _PropertyCard extends StatelessWidget {
                     // Lokasi
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF8A6A48)),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 13,
+                          color: Color(0xFF8A6A48),
+                        ),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
                             property.location,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF8A6A48)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF8A6A48),
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -860,19 +1054,30 @@ class _PropertyCard extends StatelessWidget {
                       children: [
                         const Text(
                           'Status',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A8070)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF9A8070),
+                          ),
                         ),
                         const Spacer(),
                         GestureDetector(
                           onTap: onUbahStatus,
-                          child: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF9A8070)),
+                          child: const Icon(
+                            Icons.more_vert_rounded,
+                            size: 18,
+                            color: Color(0xFF9A8070),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     // Badge status
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: status.badgeBg,
                         borderRadius: BorderRadius.circular(999),
@@ -883,7 +1088,10 @@ class _PropertyCard extends StatelessWidget {
                           Container(
                             width: 7,
                             height: 7,
-                            decoration: BoxDecoration(color: status.dotColor, shape: BoxShape.circle),
+                            decoration: BoxDecoration(
+                              color: status.dotColor,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -901,12 +1109,20 @@ class _PropertyCard extends StatelessWidget {
                     // Terakhir diperbarui
                     const Text(
                       'Terakhir Diperbarui',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A8070)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF9A8070),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _formatLastUpdated(),
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF5A4535), fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF5A4535),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const Spacer(),
                     // Tombol aksi side-by-side
@@ -919,9 +1135,17 @@ class _PropertyCard extends StatelessWidget {
                               foregroundColor: const Color(0xFF8F4E1E),
                               side: const BorderSide(color: Color(0xFF8F4E1E)),
                               padding: const EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            child: const Text('Detail', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                            child: const Text(
+                              'Detail',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -931,9 +1155,17 @@ class _PropertyCard extends StatelessWidget {
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF8F4E1E),
                               padding: const EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            child: const Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                            child: const Text(
+                              'Status',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -954,20 +1186,81 @@ class _PropertyCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────
 
 class _StatItem {
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
+  final Color valueColor;
   final int count;
   final String label;
   final String sublabel;
   const _StatItem({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
+    required this.valueColor,
     required this.count,
     required this.label,
     required this.sublabel,
   });
+}
+
+class _FilterDropdown extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<(String, String)> options;
+  final ValueChanged<String?> onChanged;
+
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF5A4535),
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: value,
+          isExpanded: true,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFFCF9F5),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE9D7BF)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE9D7BF)),
+            ),
+          ),
+          items: options
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option.$1,
+                  child: Text(
+                    option.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
 }
 
 class _PhotoPlaceholder extends StatelessWidget {
@@ -976,7 +1269,11 @@ class _PhotoPlaceholder extends StatelessWidget {
     return Container(
       color: const Color(0xFFF5EAD8),
       child: const Center(
-        child: Icon(Icons.home_work_outlined, size: 36, color: Color(0xFFCB9A6A)),
+        child: Icon(
+          Icons.home_work_outlined,
+          size: 36,
+          color: Color(0xFFCB9A6A),
+        ),
       ),
     );
   }
@@ -996,7 +1293,11 @@ class _SpecChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7A5230)),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF7A5230),
+        ),
       ),
     );
   }
@@ -1036,13 +1337,17 @@ class _MessageCard extends StatelessWidget {
             child: Icon(icon, size: 36, color: iconColor),
           ),
           const SizedBox(height: 14),
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Color(0xFF6D5540))),
-          if (action != null) ...[
-            const SizedBox(height: 16),
-            action!,
-          ],
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6D5540)),
+          ),
+          if (action != null) ...[const SizedBox(height: 16), action!],
         ],
       ),
     );
@@ -1054,7 +1359,11 @@ class _PageBtn extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  const _PageBtn({required this.icon, required this.enabled, required this.onTap});
+  const _PageBtn({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1068,7 +1377,11 @@ class _PageBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFE0CCBA)),
         ),
-        child: Icon(icon, size: 20, color: enabled ? const Color(0xFF5A3A22) : const Color(0xFFCCBBAA)),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? const Color(0xFF5A3A22) : const Color(0xFFCCBBAA),
+        ),
       ),
     );
   }
@@ -1093,12 +1406,19 @@ class _PerPageSelector extends StatelessWidget {
         child: DropdownButton<int>(
           value: value,
           isDense: true,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF3A2B1F)),
-          items: [5, 10, 20, 50].map((v) => DropdownMenuItem(
-            value: v,
-            child: Text('$v / halaman'),
-          )).toList(),
-          onChanged: (v) { if (v != null) onChanged(v); },
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF3A2B1F),
+          ),
+          items: [5, 10, 20, 50]
+              .map(
+                (v) => DropdownMenuItem(value: v, child: Text('$v / halaman')),
+              )
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
         ),
       ),
     );

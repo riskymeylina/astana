@@ -90,9 +90,19 @@ class _TransactionsPageState extends State<TransactionsPage> {
         backgroundColor: _amber,
         foregroundColor: _brown,
         elevation: 0,
-        title: const Text(
-          'Semua Transaksi',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Semua Transaksi',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Text(
+              'Pantau pembayaran dan status transaksi properti',
+              style: TextStyle(fontSize: 11, height: 1.2),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -198,7 +208,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _transactions.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (_, i) {
           final tx = _transactions[i];
           return Container(
@@ -216,7 +226,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        tx.propertyTitle ?? 'Properti #${tx.propertyId}',
+                        tx.propertyTitle,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14.5,
@@ -225,7 +235,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _StatusChip(status: tx.status ?? '-'),
+                    _StatusChip(status: tx.status),
                   ],
                 ),
                 if (tx.buyerName != null && tx.buyerName!.isNotEmpty) ...[

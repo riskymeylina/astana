@@ -18,18 +18,28 @@ class PaymentMethodSelector extends StatefulWidget {
 class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
   static const List<Map<String, dynamic>> _methods = [
     {
-      'id': 'Transfer Bank',
-      'title': 'Transfer Bank',
-      'description': 'Transfer ke rekening tujuan dengan nominal otomatis.',
-      'badge': 'Bank',
-      'icon': Icons.account_balance_rounded,
+      'id': 'QRIS',
+      'title': 'QRIS',
+      'subtitle': 'Otomatis & Terverifikasi Realtime',
+      'description':
+          'Scan QR Code dari aplikasi Mobile Banking (BCA, Mandiri, BNI, BRI) atau E-Wallet (GoPay, OVO, DANA, ShopeePay).',
+      'badge': 'Rekomendasi • Instan',
+      'badgeColor': Color(0xFF1E5FAF),
+      'badgeBg': Color(0xFFE8F1FC),
+      'icon': Icons.qr_code_scanner_rounded,
+      'partners': 'BCA • Mandiri • BRI • GoPay • OVO • DANA • ShopeePay',
     },
     {
       'id': 'Cash Payment',
-      'title': 'Cash Payment',
-      'description': 'Pembayaran tunai tetap menampilkan instruksi rekening.',
-      'badge': 'Full',
+      'title': 'Cash Payment (Tunai)',
+      'subtitle': 'Bayar di Kantor Pemasaran',
+      'description':
+          'Lakukan pembayaran tunai langsung ke kasir di Kantor Pemasaran Resmi Astana Karya. Kwitansi resmi akan diterbitkan langsung.',
+      'badge': 'Tanpa Biaya Admin',
+      'badgeColor': Color(0xFF1F7A45),
+      'badgeBg': Color(0xFFE8F6ED),
       'icon': Icons.payments_rounded,
+      'partners': 'Lokasi: Kantor Pemasaran Astana Karya (08:00 - 16:30 WIB)',
     },
   ];
 
@@ -39,32 +49,34 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
       children: [
         ..._methods.map((method) {
           final isSelected = widget.selected == method['id'];
+          final isQris = method['id'] == 'QRIS';
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: PurchaseTheme.spacing10),
+            padding: const EdgeInsets.only(bottom: PurchaseTheme.spacing12),
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () => widget.onChanged(method['id']),
               child: AnimatedContainer(
                 duration: PurchaseTheme.durationShort,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? PurchaseTheme.paymentSelectedBg
+                      ? (isQris ? const Color(0xFFF4F8FD) : PurchaseTheme.paymentSelectedBg)
                       : PurchaseTheme.cardBackground,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
-                        ? PurchaseTheme.success.withOpacity(0.45)
+                        ? (isQris ? const Color(0xFF1E5FAF) : PurchaseTheme.success)
                         : PurchaseTheme.dividerColor,
-                    width: isSelected ? 1.4 : 1,
+                    width: isSelected ? 1.6 : 1,
                   ),
                   boxShadow: isSelected
-                      ? const [
+                      ? [
                           BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
+                            color: (isQris ? const Color(0xFF1E5FAF) : PurchaseTheme.success)
+                                .withOpacity(0.12),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
                           ),
                         ]
                       : null,
@@ -73,23 +85,25 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? PurchaseTheme.success.withOpacity(0.14)
+                            ? (isQris
+                                ? const Color(0xFF1E5FAF).withOpacity(0.12)
+                                : PurchaseTheme.success.withOpacity(0.14))
                             : const Color(0xFFF6F1EA),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                       child: Icon(
                         method['icon'],
                         color: isSelected
-                            ? PurchaseTheme.success
+                            ? (isQris ? const Color(0xFF1E5FAF) : PurchaseTheme.success)
                             : const Color(0xFF8A735F),
-                        size: 22,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(width: PurchaseTheme.spacing12),
+                    const SizedBox(width: PurchaseTheme.spacing14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,9 +114,9 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                                 child: Text(
                                   method['title'],
                                   style: const TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF303030),
+                                    color: Color(0xFF222222),
                                     fontFamily: 'TomatoGrotesk',
                                   ),
                                 ),
@@ -112,46 +126,69 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                                     ? Icons.check_circle_rounded
                                     : Icons.radio_button_unchecked_rounded,
                                 color: isSelected
-                                    ? PurchaseTheme.success
+                                    ? (isQris ? const Color(0xFF1E5FAF) : PurchaseTheme.success)
                                     : const Color(0xFFB8B8B8),
-                                size: 21,
+                                size: 22,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
+                          Text(
+                            method['subtitle'],
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected
+                                  ? (isQris ? const Color(0xFF1E5FAF) : PurchaseTheme.success)
+                                  : const Color(0xFF8A735F),
+                              fontFamily: 'TomatoGrotesk',
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                           Text(
                             method['description'],
                             style: const TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF777777),
-                              height: 1.35,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF666666),
+                              height: 1.4,
                               fontFamily: 'TomatoGrotesk',
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: PurchaseTheme.dividerColor,
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: method['badgeBg'] as Color,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  method['badge'] as String,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: method['badgeColor'] as Color,
+                                    fontFamily: 'TomatoGrotesk',
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              method['badge'],
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                color: isSelected
-                                    ? PurchaseTheme.navy
-                                    : const Color(0xFF8A8A8A),
-                                fontFamily: 'TomatoGrotesk',
-                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            method['partners'] as String,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF888888),
+                              fontFamily: 'TomatoGrotesk',
                             ),
                           ),
                         ],
@@ -174,16 +211,16 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
           child: const Row(
             children: [
               Icon(
-                Icons.info_outline_rounded,
+                Icons.security_rounded,
                 color: Color(0xFF9A6700),
                 size: 18,
               ),
               SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  'Nominal pembayaran otomatis mengikuti total pesanan.',
+                  'Transaksi QRIS diproses secara aman dan terenkripsi.',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF6D5540),
                     fontFamily: 'TomatoGrotesk',

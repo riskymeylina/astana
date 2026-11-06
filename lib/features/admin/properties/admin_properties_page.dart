@@ -40,15 +40,6 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage>
   ];
   static const _sortOptions = ['Terbaru', 'Terlama', 'Harga Tertinggi', 'Harga Terendah'];
 
-  // ── Summary counts ──────────────────────────────────────────────────────────
-  int get _totalCount => _allProperties.length;
-  int get _tersediaCount =>
-      _allProperties.where((p) => p.status.toLowerCase() == 'available').length;
-  int get _bookingCount =>
-      _allProperties.where((p) => p.status.toLowerCase() == 'booking').length;
-  int get _terjualCount =>
-      _allProperties.where((p) => p.status.toLowerCase() == 'sold').length;
-
   @override
   void initState() {
     super.initState();
@@ -162,7 +153,7 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage>
     );
     if (confirm != true || !mounted) return;
 
-    final response = await _service.deleteProperty(property.id!);
+    final response = await _service.deleteProperty(property.id);
     if (!mounted) return;
 
     final message = _service.parseMessage(response.body);
@@ -285,7 +276,7 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage>
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         itemCount: _filteredProperties.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final property = _filteredProperties[index];
           return _PropertyListItem(
@@ -314,350 +305,6 @@ class _AdminPropertiesPageState extends State<AdminPropertiesPage>
       label: const Text(
         'Tambah Properti',
         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Hero Header
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PropertiesHeroHeader extends StatelessWidget {
-  final VoidCallback onBack;
-
-  const _PropertiesHeroHeader({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-    return Container(
-      width: double.infinity,
-      height: 160 + topPadding,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6B1E00), Color(0xFFA83A00), Color(0xFFD15A10)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Decorative background
-          Positioned.fill(
-            child: CustomPaint(painter: _HeroDecorationPainter()),
-          ),
-          // House illustration
-          const Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: _HeroIllustration(),
-          ),
-          // Back button + text
-          Positioned(
-            top: topPadding + 8,
-            left: 4,
-            right: 16,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Kelola Data Properti',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Kelola, pantau, dan perbarui seluruh data properti Anda dengan mudah.',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFFFFD7B0),
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroDecorationPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.08)
-      ..style = PaintingStyle.fill;
-    final dots = [
-      Offset(size.width * 0.1, size.height * 0.15),
-      Offset(size.width * 0.2, size.height * 0.75),
-      Offset(size.width * 0.35, size.height * 0.1),
-      Offset(size.width * 0.45, size.height * 0.85),
-      Offset(size.width * 0.6, size.height * 0.2),
-    ];
-    for (final d in dots) {
-      canvas.drawCircle(d, 24, dotPaint);
-    }
-    final wavePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..style = PaintingStyle.fill;
-    final path = Path()
-      ..moveTo(0, size.height * 0.65)
-      ..quadraticBezierTo(
-        size.width * 0.3, size.height * 0.4,
-        size.width * 0.6, size.height * 0.7,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.8, size.height * 0.9,
-        size.width, size.height * 0.6,
-      )
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(path, wavePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _HeroIllustration extends StatelessWidget {
-  const _HeroIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 160,
-      child: CustomPaint(painter: _IllustrationPainter()),
-    );
-  }
-}
-
-class _IllustrationPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final cx = size.width * 0.45;
-    final cy = size.height * 0.42;
-    const hw = 38.0;
-    const hh = 30.0;
-    canvas.drawPath(
-      Path()..addRect(Rect.fromLTWH(cx - hw * 0.6, cy, hw * 1.2, hh)),
-      paint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(cx - hw * 0.75, cy)
-        ..lineTo(cx, cy - hh * 0.7)
-        ..lineTo(cx + hw * 0.75, cy),
-      paint,
-    );
-    canvas.drawPath(
-      Path()..addRect(Rect.fromLTWH(cx - 8, cy + hh * 0.35, 16, hh * 0.65)),
-      paint,
-    );
-    canvas.drawPath(
-      Path()..addRect(Rect.fromLTWH(cx + 10, cy + 6, 12, 12)),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Summary Cards
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SummaryCardsRow extends StatelessWidget {
-  final int total;
-  final int tersedia;
-  final int booking;
-  final int tidakTersedia;
-
-  const _SummaryCardsRow({
-    required this.total,
-    required this.tersedia,
-    required this.booking,
-    required this.tidakTersedia,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.home_rounded,
-            iconBg: const Color(0xFFFFF0DC),
-            iconColor: const Color(0xFFCB7D2A),
-            label: 'Total Properti',
-            count: total,
-            sublabel: 'Semua properti terdaftar',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.check_circle_outline_rounded,
-            iconBg: const Color(0xFFDCF4E8),
-            iconColor: const Color(0xFF2A9D5C),
-            label: 'Tersedia',
-            count: tersedia,
-            sublabel: 'Properti siap dijual',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.bookmark_border_rounded,
-            iconBg: const Color(0xFFFFF4DC),
-            iconColor: const Color(0xFFB07B10),
-            label: 'Booking',
-            count: booking,
-            sublabel: 'Sedang dalam proses',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.cancel_outlined,
-            iconBg: const Color(0xFFFFEAEA),
-            iconColor: const Color(0xFFC74C4C),
-            label: 'Tidak Tersedia',
-            count: tidakTersedia,
-            sublabel: 'Tidak tersedia saat ini',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String label;
-  final int count;
-  final String sublabel;
-
-  const _SummaryCard({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.label,
-    required this.count,
-    required this.sublabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFECDDCC)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(icon, color: iconColor, size: 17),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF6B5240),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$count',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF2F2318),
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            sublabel,
-            style: const TextStyle(
-              fontSize: 9,
-              color: Color(0xFF9E856C),
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryCardsSkeleton extends StatelessWidget {
-  const _SummaryCardsSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(
-        4,
-        (_) => Expanded(
-          child: Container(
-            height: 100,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECDDCC).withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -720,7 +367,7 @@ class _SearchFilterBar extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(vertical: 13),
               suffixIcon: ValueListenableBuilder(
                 valueListenable: searchController,
-                builder: (_, value, __) => value.text.isNotEmpty
+                builder: (_, value, _) => value.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(
                           Icons.close_rounded,
@@ -1036,7 +683,7 @@ class _PropertyThumbnail extends StatelessWidget {
             ? Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _PlaceholderImage(),
+                errorBuilder: (_, _, _) => _PlaceholderImage(),
               )
             : _PlaceholderImage(),
       ),
@@ -1226,8 +873,8 @@ class _PropertyListSkeleton extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => Container(
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (_, _) => Container(
         height: 110,
         decoration: BoxDecoration(
           color: const Color(0xFFECDDCC).withValues(alpha: 0.5),

@@ -19,7 +19,6 @@ class _GlobalReportPageState extends State<GlobalReportPage> {
   bool _loading = true;
   String? _error;
 
-  static const _amber = Color(0xFFFDD096);
   static const _border = Color(0xFFE7CCAE);
   static const _brown = Color(0xFF7A4F2D);
 
@@ -76,8 +75,8 @@ class _GlobalReportPageState extends State<GlobalReportPage> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _buildError()
-                    : _buildContent(),
+                ? _buildError()
+                : _buildContent(),
           ),
         ],
       ),
@@ -119,10 +118,9 @@ class _GlobalReportPageState extends State<GlobalReportPage> {
             title: 'Ringkasan Sistem',
             border: _border,
             children: [
-              _StatRow(label: 'Total Pembeli', value: '${r.totalBuyers}'),
-              _StatRow(label: 'Total Staf', value: '${r.totalStaff}'),
-              _StatRow(label: 'Total Properti', value: '${r.totalProperties}'),
-              _StatRow(label: 'Total Transaksi', value: '${r.totalTransactions}'),
+              _StatRow(label: 'Pembeli', value: '${r.uniqueTransactingBuyers}'),
+              _StatRow(label: 'Properti', value: '${r.totalProperties}'),
+              _StatRow(label: 'Transaksi', value: '${r.totalTransactions}'),
             ],
           ),
           const SizedBox(height: 14),
@@ -130,7 +128,19 @@ class _GlobalReportPageState extends State<GlobalReportPage> {
             title: 'Aktivitas Transaksi',
             border: _border,
             children: [
-              _StatRow(label: 'Transaksi Konfirmasi', value: '${r.confirmedTransactions}'),
+              _StatRow(
+                label: 'Pembeli Bertransaksi',
+                value: '${r.uniqueTransactingBuyers}',
+              ),
+              _StatRow(label: 'Transaksi Terjual', value: '${r.soldUnits}'),
+              _StatRow(
+                label: 'Pesanan Terkonfirmasi',
+                value: '${r.confirmedTransactions}',
+              ),
+              _StatRow(
+                label: 'Penjualan Historis Selesai',
+                value: '${r.completedHistoricalTransactions}',
+              ),
               _StatRow(
                 label: 'Total Pendapatan',
                 value: _formatCurrency(r.totalRevenue),

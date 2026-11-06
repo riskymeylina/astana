@@ -61,9 +61,19 @@ class _AvailabilityReportPageState extends State<AvailabilityReportPage> {
         backgroundColor: _amber,
         foregroundColor: _brown,
         elevation: 0,
-        title: const Text(
-          'Laporan Ketersediaan',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Laporan Ketersediaan',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Text(
+              'Ringkasan unit properti berdasarkan status',
+              style: TextStyle(fontSize: 11, height: 1.2),
+            ),
+          ],
         ),
         actions: [
           IconButton(

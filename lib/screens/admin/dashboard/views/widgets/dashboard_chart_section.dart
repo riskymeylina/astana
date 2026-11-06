@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../../services/admin_report_service.dart';
-import '../../../../../models/purchase_order_model.dart';
+import '../../../../../models/recap_transaction_model.dart';
 
 class DashboardChartSection extends StatefulWidget {
   const DashboardChartSection({super.key});
@@ -14,7 +14,7 @@ class _DashboardChartSectionState extends State<DashboardChartSection> {
   final AdminReportService _reportService = AdminReportService();
   bool _isLoading = true;
   String _selectedPeriod = '6 Bulan';
-  List<PurchaseOrderModel> _transactions = [];
+  List<RecapTransaction> _transactions = [];
 
   final List<String> _periods = ['1 Bulan', '3 Bulan', '6 Bulan', '1 Tahun', 'Semua Waktu'];
 
@@ -40,11 +40,14 @@ class _DashboardChartSectionState extends State<DashboardChartSection> {
     }
 
     try {
-      final response = await _reportService.getSalesReport(from: from, to: now);
+      final response = await _reportService.getTransactions(from: from, to: now);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final result = _reportService.parseSalesReport(response.body);
         setState(() {
-          _transactions = result.transactions.where((t) => t.status.toLowerCase() == 'confirmed').toList();
+          _transactions = RecapTransaction.combine(
+            orders: result.transactions,
+            historicalSales: result.historicalSales,
+          ).where((t) => t.isConfirmed).toList();
           _isLoading = false;
         });
       } else {
@@ -58,10 +61,10 @@ class _DashboardChartSectionState extends State<DashboardChartSection> {
   Map<String, double> _getMonthlyData() {
     final Map<String, double> data = {};
     for (var t in _transactions) {
-      if (t.updatedAt != null) {
-        final dt = DateTime.parse(t.updatedAt!).toLocal();
+      if (t.date != null) {
+        final dt = t.date!.toLocal();
         final monthStr = DateFormat('MMM yy', 'id_ID').format(dt);
-        data[monthStr] = (data[monthStr] ?? 0) + (t.paymentAmount ?? 0).toDouble();
+        data[monthStr] = (data[monthStr] ?? 0) + t.amount;
       }
     }
     return data;
@@ -70,13 +73,15 @@ class _DashboardChartSectionState extends State<DashboardChartSection> {
   @override
   Widget build(BuildContext context) {
     final data = _getMonthlyData();
-    final labels = data.keys.toList().reversed.toList(); // Assuming they come sorted descending if fetched recent first, but map order depends on insertion. Let's just sort keys.
+    final labels = data.keys.toList();
     labels.sort((a, b) {
       try {
         final dta = DateFormat('MMM yy', 'id_ID').parse(a);
         final dtb = DateFormat('MMM yy', 'id_ID').parse(b);
         return dta.compareTo(dtb);
-      } catch (_) { return 0; }
+      } catch (_) {
+        return 0;
+      }
     });
 
     final values = labels.map((l) => data[l]!).toList();
@@ -145,12 +150,12 @@ class _DashboardChartSectionState extends State<DashboardChartSection> {
           ),
           const SizedBox(height: 24),
           Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : CustomPaint(
-                  size: const Size(double.infinity, double.infinity),
-                  painter: _RealLineChartPainter(values: values),
-                ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : CustomPaint(
+                    size: const Size(double.infinity, double.infinity),
+                    painter: _RealLineChartPainter(values: values),
+                  ),
           ),
           const SizedBox(height: 12),
           Row(

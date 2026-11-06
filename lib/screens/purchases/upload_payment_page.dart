@@ -7,8 +7,6 @@ import 'dart:async';
 import '../../models/purchase_order_model.dart';
 import '../../services/purchase_service.dart';
 import 'widgets/purchase_theme.dart';
-import 'widgets/payment_info_card.dart';
-import 'widgets/requirements_checker.dart';
 import 'widgets/upload_area.dart';
 import 'widgets/payment_proof_preview.dart';
 import '../../widgets/braga_page_header.dart';
@@ -192,8 +190,8 @@ class _UploadPaymentPageState extends State<UploadPaymentPage> {
   }
 
   Widget _buildPaymentInfo() {
-    final isCash = widget.order.paymentMethod.toLowerCase().contains('cash') ||
-        widget.order.paymentMethod.toLowerCase().contains('tunai');
+    final isQris = widget.order.isQris;
+    final isCash = widget.order.isCash;
 
     return Container(
       decoration: PurchaseTheme.cardDecoration(),
@@ -209,7 +207,66 @@ class _UploadPaymentPageState extends State<UploadPaymentPage> {
           const SizedBox(height: PurchaseTheme.spacing6),
           Text(widget.order.paymentMethod, style: PurchaseTheme.body),
           const SizedBox(height: PurchaseTheme.spacing16),
-          if (isCash) ...[
+          if (isQris) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(PurchaseTheme.spacing14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F6FD),
+                borderRadius: BorderRadius.circular(PurchaseTheme.radiusMedium),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.qr_code_scanner_rounded, size: 20, color: Color(0xFF1E5FAF)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pembayaran Otomatis QRIS',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E5FAF),
+                            fontFamily: 'TomatoGrotesk',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Pembayaran dengan QRIS diverifikasi secara otomatis dan instan. Anda tidak perlu mengunggah bukti pembayaran secara manual.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: Color(0xFF334155),
+                      fontFamily: 'TomatoGrotesk',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1E5FAF),
+                        side: const BorderSide(color: Color(0xFF1E5FAF)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.qr_code_rounded, size: 16),
+                      label: const Text(
+                        'Kembali ke Halaman Scan QRIS',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (isCash) ...[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(PurchaseTheme.spacing12),
@@ -243,37 +300,6 @@ class _UploadPaymentPageState extends State<UploadPaymentPage> {
             ),
           ] else ...[
             Text(widget.order.paymentAccountNumber ?? '-', style: PurchaseTheme.body),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(PurchaseTheme.spacing12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF4E9),
-                borderRadius: BorderRadius.circular(PurchaseTheme.radiusMedium),
-                border: Border.all(color: PurchaseTheme.lightBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Atas Nama', style: PurchaseTheme.hint),
-                  const SizedBox(height: PurchaseTheme.spacing6),
-                  Text(widget.order.paymentAccountName ?? '-', style: PurchaseTheme.body),
-                  const SizedBox(height: PurchaseTheme.spacing12),
-                  Row(
-                    children: [
-                      const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF8E4E16)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Pastikan nominal transfer sesuai\nTransfer dengan nominal yang berbeda akan memperlambat proses verifikasi.',
-                          style: PurchaseTheme.hint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           ],
         ],
       ),
@@ -312,25 +338,6 @@ class _UploadPaymentPageState extends State<UploadPaymentPage> {
       decimalDigits: 0,
     );
     return formatter.format(price);
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'pending_payment':
-        return 'Menunggu Pembayaran';
-      case 'payment_uploaded':
-        return 'Bukti Diunggah';
-      case 'payment_review':
-        return 'Sedang Ditinjau';
-      case 'confirmed':
-        return 'Dikonfirmasi';
-      case 'rejected':
-        return 'Ditolak';
-      case 'cancelled':
-        return 'Dibatalkan';
-      default:
-        return status;
-    }
   }
 
   String _formatDate(String? value) {
@@ -636,86 +643,4 @@ class _UploadPaymentPageState extends State<UploadPaymentPage> {
     );
   }
 
-  Widget _buildOrderSummary() {
-    return Container(
-      decoration: PurchaseTheme.cardDecoration(),
-      padding: const EdgeInsets.all(PurchaseTheme.spacing18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: PurchaseTheme.orangeBg,
-                  borderRadius: BorderRadius.circular(PurchaseTheme.radiusLarge),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.receipt_long_rounded,
-                  color: PurchaseTheme.brown,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: PurchaseTheme.spacing14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ringkasan Pesanan',
-                      style: PurchaseTheme.heading2,
-                    ),
-                    const SizedBox(height: PurchaseTheme.spacing4),
-                    Text(
-                      widget.order.propertyTitle,
-                      style: PurchaseTheme.bodySecondary,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: PurchaseTheme.spacing18),
-          Row(
-            children: [
-              Expanded(
-                child: _buildOrderField(
-                  'No. Pemesanan',
-                  'INV/${widget.order.id.toString().padLeft(6, '0')}',
-                ),
-              ),
-              const SizedBox(width: PurchaseTheme.spacing16),
-              Expanded(
-                child: _buildOrderField(
-                  'Tanggal Pemesanan',
-                  _formatDate(widget.order.createdAt),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: PurchaseTheme.spacing14),
-          _buildOrderField('Status', _statusLabel(widget.order.status)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: PurchaseTheme.hint),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: PurchaseTheme.body,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
 }

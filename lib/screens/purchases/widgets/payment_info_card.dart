@@ -24,18 +24,8 @@ class PaymentInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accountNumber = order.paymentAccountNumber?.trim().isNotEmpty == true
-        ? order.paymentAccountNumber!.trim()
-        : '-';
-    final accountName = order.paymentAccountName?.trim().isNotEmpty == true
-        ? order.paymentAccountName!.trim()
-        : '-';
-    final bankNote = order.paymentBankNote?.trim().isNotEmpty == true
-        ? order.paymentBankNote!.trim()
-        : 'Bank BCA';
-
-    final isCash = order.paymentMethod.toLowerCase().contains('cash') ||
-        order.paymentMethod.toLowerCase().contains('tunai');
+    final isQris = order.isQris;
+    final isCash = order.isCash;
 
     return Container(
       width: double.infinity,
@@ -61,12 +51,18 @@ class PaymentInfoCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: isCash ? const Color(0xFFE5F5EC) : const Color(0xFFFFF0D9),
+                  color: isQris
+                      ? const Color(0xFFE8F1FC)
+                      : (isCash ? const Color(0xFFE5F5EC) : const Color(0xFFFFF0D9)),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
-                  isCash ? Icons.payments_rounded : Icons.account_balance_wallet_rounded,
-                  color: isCash ? const Color(0xFF1F7A45) : const Color(0xFF8E4E16),
+                  isQris
+                      ? Icons.qr_code_scanner_rounded
+                      : (isCash ? Icons.payments_rounded : Icons.account_balance_wallet_rounded),
+                  color: isQris
+                      ? const Color(0xFF1E5FAF)
+                      : (isCash ? const Color(0xFF1F7A45) : const Color(0xFF8E4E16)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -85,9 +81,9 @@ class PaymentInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      isCash
-                          ? 'Bayar tunai secara langsung di kantor pemasaran.'
-                          : 'Transfer sesuai nominal otomatis di bawah ini.',
+                      isQris
+                          ? 'Scan kode QRIS dan selesaikan pembayaran melalui aplikasi Mobile Banking atau E-Wallet.'
+                          : 'Bayar tunai secara langsung di kantor pemasaran.',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -107,9 +103,11 @@ class PaymentInfoCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: isCash
-                    ? [const Color(0xFF1F7A45), const Color(0xFF2C9F5A)]
-                    : [const Color(0xFF1E2A5A), const Color(0xFF34427D)],
+                colors: isQris
+                    ? [const Color(0xFF1E5FAF), const Color(0xFF2A78D0)]
+                    : (isCash
+                        ? [const Color(0xFF1F7A45), const Color(0xFF2C9F5A)]
+                        : [const Color(0xFF1E2A5A), const Color(0xFF34427D)]),
               ),
               borderRadius: BorderRadius.circular(18),
             ),
@@ -117,7 +115,9 @@ class PaymentInfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCash ? 'Total yang harus dibayar tunai' : 'Total yang harus ditransfer',
+                  isQris
+                      ? 'Total yang harus dibayar via QRIS'
+                      : (isCash ? 'Total yang harus dibayar tunai' : 'Total pembayaran'),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -139,7 +139,43 @@ class PaymentInfoCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (isCash) ...[
+          if (isQris) ...[
+            _PaymentInfoRow(
+              icon: Icons.hub_rounded,
+              label: 'Metode Pembayaran',
+              value: 'QRIS (Otomatis & Realtime)',
+            ),
+            if ((order.midtransOrderId ?? '').isNotEmpty)
+              _PaymentInfoRow(
+                icon: Icons.tag_rounded,
+                label: 'Order ID',
+                value: order.midtransOrderId!,
+                trailing: TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: order.midtransOrderId!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Order ID disalin')),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 15),
+                  label: const Text('Salin', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            _PaymentInfoRow(
+              icon: Icons.verified_user_rounded,
+              label: 'Status Pembayaran',
+              value: order.isConfirmed
+                  ? 'Lunas'
+                  : (order.midtransPaymentStatus ?? 'Menunggu Pembayaran'),
+              valueColor: order.isConfirmed ? PurchaseTheme.success : const Color(0xFF1E5FAF),
+            ),
+            _PaymentInfoRow(
+              icon: Icons.schedule_rounded,
+              label: 'Batas Pembayaran',
+              value: formatDate(order.paymentDueAt),
+              valueColor: order.isCancelled ? PurchaseTheme.error : const Color(0xFF9A6700),
+            ),
+          ] else ...[
             const _PaymentInfoRow(
               icon: Icons.location_on_rounded,
               label: 'Lokasi Pembayaran',
@@ -151,48 +187,15 @@ class PaymentInfoCard extends StatelessWidget {
               value: '08:00 - 16:30 WIB (Setiap Hari)',
             ),
             _PaymentInfoRow(
-              icon: Icons.schedule_rounded,
-              label: 'Batas Pembayaran',
-              value: formatDate(order.paymentDueAt),
-              valueColor: order.isCancelled
-                  ? PurchaseTheme.error
-                  : const Color(0xFF9A6700),
-            ),
-          ] else ...[
-            _PaymentInfoRow(
-              icon: Icons.credit_card_rounded,
-              label: 'Nomor Rekening',
-              value: accountNumber,
-              trailing: accountNumber == '-'
-                  ? null
-                  : TextButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: accountNumber));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Nomor rekening disalin')),
-                        );
-                      },
-                      icon: const Icon(Icons.copy_rounded, size: 16),
-                      label: const Text('Salin'),
-                    ),
-            ),
-            _PaymentInfoRow(
-              icon: Icons.person_rounded,
-              label: 'Nama Pemilik Rekening',
-              value: accountName,
-            ),
-            _PaymentInfoRow(
-              icon: Icons.storefront_rounded,
-              label: 'Keterangan',
-              value: bankNote,
+              icon: Icons.receipt_long_rounded,
+              label: 'Bukti Pembayaran',
+              value: 'Kwitansi fisik resmi dari kasir kantor',
             ),
             _PaymentInfoRow(
               icon: Icons.schedule_rounded,
               label: 'Batas Pembayaran',
               value: formatDate(order.paymentDueAt),
-              valueColor: order.isCancelled
-                  ? PurchaseTheme.error
-                  : const Color(0xFF9A6700),
+              valueColor: order.isCancelled ? PurchaseTheme.error : const Color(0xFF9A6700),
             ),
           ],
         ],

@@ -4,9 +4,8 @@ import '../../../services/auth_service.dart';
 import 'web_sidebar.dart';
 import 'views/dashboard_main_view.dart';
 import '../../../features/admin/properties/admin_properties_page.dart';
-import '../../admin/manage_buyers_page.dart';
+import '../../admin/manage_buyer_records_page.dart';
 import '../../admin/manage_staff_page.dart';
-import '../../admin/global_report_page.dart';
 import '../../surveys/marketing_survey_requests_page.dart';
 import '../../consultation/manage_consultations_page.dart';
 import '../../property/marketing_property_availability_page.dart';
@@ -88,7 +87,7 @@ Widget _buildContent() {
       case 2:
         return const SalesReportPage();
       case 3:
-        return const ManageBuyersPage();
+        return const ManageBuyerRecordsPage();
       case 4:
         return const ManageStaffPage();
       case 5:

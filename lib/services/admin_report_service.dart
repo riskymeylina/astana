@@ -3,16 +3,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/admin_models.dart';
+import '../models/buyer_record_model.dart';
 import '../models/purchase_order_model.dart';
 import 'auth_service.dart';
 
 class AdminSalesReportResult {
   final double totalRevenue;
   final List<PurchaseOrderModel> transactions;
+  final List<HistoricalSale> historicalSales;
 
   const AdminSalesReportResult({
     required this.totalRevenue,
     required this.transactions,
+    this.historicalSales = const [],
   });
 }
 
@@ -56,6 +59,7 @@ class AdminReportService {
 
   Future<ApiResponse> getTransactions({
     String? status,
+    String? historicalStatus,
     DateTime? from,
     DateTime? to,
     int? month,
@@ -64,11 +68,13 @@ class AdminReportService {
     _reportUri(
       'transactions',
       status: status,
+      historicalStatus: historicalStatus,
       from: from,
       to: to,
       month: month,
       year: year,
     ),
+    allowStaff: true,
   );
 
   AdminGlobalReportModel parseGlobalReport(String body) {
@@ -84,7 +90,11 @@ class AdminReportService {
   AdminSalesReportResult parseSalesReport(String body) {
     final decoded = jsonDecode(body);
     if (decoded is! Map<String, dynamic>)
-      return const AdminSalesReportResult(totalRevenue: 0, transactions: []);
+      return const AdminSalesReportResult(
+        totalRevenue: 0,
+        transactions: [],
+        historicalSales: [],
+      );
     final raw = decoded['transactions'];
     final transactions = raw is List
         ? raw
@@ -96,9 +106,20 @@ class AdminReportService {
               )
               .toList()
         : <PurchaseOrderModel>[];
+    final rawHistoricalSales = decoded['historicalSales'];
+    final historicalSales = rawHistoricalSales is List
+        ? rawHistoricalSales
+              .whereType<Map>()
+              .map(
+                (item) =>
+                    HistoricalSale.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList()
+        : <HistoricalSale>[];
     return AdminSalesReportResult(
       totalRevenue: _toDouble(decoded['totalRevenue']),
       transactions: transactions,
+      historicalSales: historicalSales,
     );
   }
 
@@ -157,8 +178,8 @@ class AdminReportService {
     return 'Terjadi kesalahan';
   }
 
-  Future<ApiResponse> _get(Uri uri) async {
-    final token = _token();
+  Future<ApiResponse> _get(Uri uri, {bool allowStaff = false}) async {
+    final token = _token(allowStaff: allowStaff);
     if (token == null) {
       return ApiResponse(
         statusCode: 401,
@@ -180,12 +201,13 @@ class AdminReportService {
     }
   }
 
-  String? _token() {
+  String? _token({bool allowStaff = false}) {
     final session = AuthService().getSession();
     if ((session?['sessionState'] ?? '').toString() != SessionState.verified) {
       return null;
     }
-    if ((session?['role'] ?? '').toString() != UserRoles.admin) {
+    final role = (session?['role'] ?? '').toString();
+    if (role != UserRoles.admin && (!allowStaff || role != UserRoles.staf)) {
       return null;
     }
     final token = (session?['token'] ?? '').toString();
@@ -201,6 +223,7 @@ class AdminReportService {
   Uri _reportUri(
     String path, {
     String? status,
+    String? historicalStatus,
     DateTime? from,
     DateTime? to,
     int? month,
@@ -208,6 +231,9 @@ class AdminReportService {
   }) {
     final params = <String, String>{};
     if (status?.trim().isNotEmpty ?? false) params['status'] = status!.trim();
+    if (historicalStatus?.trim().isNotEmpty ?? false) {
+      params['historicalStatus'] = historicalStatus!.trim();
+    }
     if (from != null) params['from'] = _date(from);
     if (to != null) params['to'] = _date(to);
     if (month != null) params['month'] = month.toString();

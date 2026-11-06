@@ -34,7 +34,6 @@ class _AdminAvailabilityReportPageState extends State<AdminAvailabilityReportPag
   int _totalTersedia = 0;
   int _totalBooking = 0;
   int _totalTerjual = 0;
-  int _totalArsip = 0;
   double _totalNilaiAll = 0;
 
   @override
@@ -67,11 +66,10 @@ class _AdminAvailabilityReportPageState extends State<AdminAvailabilityReportPag
     _totalTersedia = 0;
     _totalBooking = 0;
     _totalTerjual = 0;
-    _totalArsip = 0;
     _totalNilaiAll = 0;
 
     for (var p in _properties) {
-      final cName = p.clusterName?.isNotEmpty == true ? p.clusterName! : 'Lainnya';
+      final cName = p.location.isNotEmpty ? p.location : 'Lainnya';
       if (!map.containsKey(cName)) {
         map[cName] = ClusterReportData(cName);
       }
@@ -93,7 +91,6 @@ class _AdminAvailabilityReportPageState extends State<AdminAvailabilityReportPag
         _totalTerjual++;
       } else {
         c.arsip++;
-        _totalArsip++;
       }
     }
 
@@ -245,65 +242,92 @@ class _AdminAvailabilityReportPageState extends State<AdminAvailabilityReportPag
   Widget _buildSummaryCards() {
     return Row(
       children: [
-        Expanded(child: _buildStatCard('Total Unit', '$_totalUnit', Icons.domain_rounded, const Color(0xFF2196F3))),
+        Expanded(child: _buildStatCard('Total Unit', '$_totalUnit', Icons.domain_rounded, const Color(0xFF6F3212), badge: 'Portofolio')),
         const SizedBox(width: 16),
-        Expanded(child: _buildStatCard('Tersedia', '$_totalTersedia', Icons.check_circle_rounded, const Color(0xFF4CAF50))),
+        Expanded(child: _buildStatCard('Tersedia', '$_totalTersedia', Icons.check_circle_rounded, const Color(0xFF16794C), badge: 'Siap Jual')),
         const SizedBox(width: 16),
-        Expanded(child: _buildStatCard('Booking', '$_totalBooking', Icons.schedule_rounded, const Color(0xFFFFC107))),
+        Expanded(child: _buildStatCard('Booking', '$_totalBooking', Icons.pending_actions_rounded, const Color(0xFFC78928), badge: 'Proses')),
         const SizedBox(width: 16),
-        Expanded(child: _buildStatCard('Terjual', '$_totalTerjual', Icons.monetization_on_rounded, const Color(0xFFF44336))),
+        Expanded(child: _buildStatCard('Terjual', '$_totalTerjual', Icons.sell_rounded, const Color(0xFFB03A2E), badge: 'Sah BAST')),
         const SizedBox(width: 16),
         Expanded(
           flex: 2,
           child: _buildStatCard(
             'Total Nilai Properti',
             'Rp ${NumberFormat('#,###', 'id_ID').format(_totalNilaiAll)}',
-            Icons.account_balance_wallet_rounded,
-            const Color(0xFF8B3E0F),
+            Icons.payments_rounded,
+            const Color(0xFF16794C),
+            badge: 'Akumulasi Nilai',
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, {String? badge}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFEEE5DC), width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8A7568),
+                    letterSpacing: 0.1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(
+                    fontSize: value.length > 14 ? 15 : (value.length > 9 ? 18 : 24),
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF2A1508),
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

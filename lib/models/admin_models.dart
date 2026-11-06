@@ -118,6 +118,9 @@ class AdminGlobalReportModel {
   final int totalStaff;
   final int totalTransactions;
   final int confirmedTransactions;
+  final int completedHistoricalTransactions;
+  final int soldUnits;
+  final int uniqueTransactingBuyers;
   final double totalRevenue;
 
   const AdminGlobalReportModel({
@@ -129,6 +132,9 @@ class AdminGlobalReportModel {
     required this.totalStaff,
     required this.totalTransactions,
     required this.confirmedTransactions,
+    required this.completedHistoricalTransactions,
+    required this.soldUnits,
+    required this.uniqueTransactingBuyers,
     required this.totalRevenue,
   });
 
@@ -142,6 +148,11 @@ class AdminGlobalReportModel {
       totalStaff: _toInt(json['total_staff']) ?? 0,
       totalTransactions: _toInt(json['total_transactions']) ?? 0,
       confirmedTransactions: _toInt(json['confirmed_transactions']) ?? 0,
+      completedHistoricalTransactions:
+          _toInt(json['completed_historical_transactions']) ?? 0,
+      soldUnits: _toInt(json['sold_units']) ?? 0,
+      uniqueTransactingBuyers:
+          _toInt(json['unique_transacting_buyers']) ?? 0,
       totalRevenue: _toDouble(json['total_revenue']),
     );
   }

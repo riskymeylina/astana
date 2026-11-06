@@ -3,9 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/survey_request_model.dart';
-import '../../models/purchase_order_model.dart';
 import '../../services/survey_service.dart';
-import '../../services/purchase_service.dart';
 import '../../widgets/braga_page_header.dart';
 import 'survey_shared.dart';
 
@@ -26,11 +24,32 @@ class _BuyerSurveyRequestsPageState
 
   bool _isLoading = true;
   bool _localeReady = false;
+  String _selectedStatus = 'all';
 
   String? _error;
 
   List<SurveyRequestModel> _surveys =
       const [];
+
+  int _countByStatus(String status) {
+    if (status == 'all') return _surveys.length;
+    if (status == 'pending') return _surveys.where((s) => s.isPending).length;
+    if (status == 'approved') return _surveys.where((s) => s.isApproved).length;
+    if (status == 'completed') return _surveys.where((s) => s.isCompleted).length;
+    if (status == 'rejected') return _surveys.where((s) => s.isRejected).length;
+    if (status == 'cancelled') return _surveys.where((s) => s.isCancelled).length;
+    return 0;
+  }
+
+  List<SurveyRequestModel> get _filteredSurveys {
+    if (_selectedStatus == 'all') return _surveys;
+    if (_selectedStatus == 'pending') return _surveys.where((s) => s.isPending).toList();
+    if (_selectedStatus == 'approved') return _surveys.where((s) => s.isApproved).toList();
+    if (_selectedStatus == 'completed') return _surveys.where((s) => s.isCompleted).toList();
+    if (_selectedStatus == 'rejected') return _surveys.where((s) => s.isRejected).toList();
+    if (_selectedStatus == 'cancelled') return _surveys.where((s) => s.isCancelled).toList();
+    return _surveys;
+  }
 
   @override
   void initState() {
@@ -70,15 +89,9 @@ class _BuyerSurveyRequestsPageState
 
       list.sort((a, b) {
         try {
-          final da = DateTime.parse(
-            a.requestedDate ??
-                '2000-01-01',
-          );
+          final da = DateTime.parse(a.requestedDate);
 
-          final db = DateTime.parse(
-            b.requestedDate ??
-                '2000-01-01',
-          );
+          final db = DateTime.parse(b.requestedDate);
 
           return db.compareTo(da);
         } catch (_) {
@@ -231,8 +244,9 @@ class _BuyerSurveyRequestsPageState
           const BragaPageHeader(
             title: 'Pengajuan Survei',
             subtitle: 'Riwayat pengajuan survei properti Anda',
-            decorativeIcon: Icons.assignment_outlined,
+            decorativeIcon: Icons.event_available_rounded,
           ),
+          _buildFilterBar(),
           // ═════════ BODY ═════════
           Expanded(
             child:
@@ -245,6 +259,96 @@ class _BuyerSurveyRequestsPageState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FILTER BAR
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildFilterBar() {
+    final filters = [
+      ('all', 'Semua', Icons.grid_view_rounded),
+      ('pending', 'Menunggu', Icons.schedule_rounded),
+      ('approved', 'Disetujui', Icons.verified_rounded),
+      ('completed', 'Selesai', Icons.task_alt_rounded),
+      ('rejected', 'Ditolak', Icons.cancel_outlined),
+      ('cancelled', 'Dibatalkan', Icons.cancel_presentation_rounded),
+    ];
+
+    return Container(
+      color: const Color(0xFFF8F3EC),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: filters.map((f) {
+            final value = f.$1;
+            final label = f.$2;
+            final icon = f.$3;
+            final isActive = _selectedStatus == value;
+            final count = _countByStatus(value);
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  if (_selectedStatus == value) return;
+                  setState(() => _selectedStatus = value);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isActive ? surveyBrownDeep : Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isActive ? surveyBrownDeep : const Color(0xFFE0CCBA),
+                    ),
+                    boxShadow: isActive
+                        ? [const BoxShadow(color: Color(0x228F4E1E), blurRadius: 8, offset: Offset(0, 2))]
+                        : [],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 14, color: isActive ? Colors.white : const Color(0xFF6C4A2F)),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isActive ? Colors.white : const Color(0xFF5A3A22),
+                        ),
+                      ),
+                      if (!_isLoading && count > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Colors.white.withOpacity(0.25)
+                                : const Color(0xFFE7CCAE),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isActive ? Colors.white : surveyBrownDeep,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -282,7 +386,9 @@ class _BuyerSurveyRequestsPageState
       );
     }
 
-    if (_surveys.isEmpty) {
+    final displaySurveys = _filteredSurveys;
+
+    if (displaySurveys.isEmpty) {
       return ListView(
         physics:
             const AlwaysScrollableScrollPhysics(),
@@ -314,10 +420,10 @@ class _BuyerSurveyRequestsPageState
       ),
 
       itemCount:
-          _surveys.length,
+          displaySurveys.length,
 
       separatorBuilder:
-          (_, __) =>
+          (_, _) =>
               const SizedBox(
         height: 16,
       ),
@@ -325,14 +431,14 @@ class _BuyerSurveyRequestsPageState
       itemBuilder: (_, i) {
         return _SurveyListCard(
           survey:
-              _surveys[i],
+              displaySurveys[i],
           fmtShort:
               _fmtShort,
           fmtTime:
               _fmtTime,
           onTap: () {
             _openDetail(
-              _surveys[i],
+              displaySurveys[i],
             );
           },
         );
@@ -368,8 +474,6 @@ class _SurveyListCard
   @override
   Widget build(BuildContext context) {
     final status = parseSurveyStatus(survey.status);
-
-    final isApproved = status == SurveyStatus.approved;
 
     return InkWell(
       borderRadius:
@@ -605,57 +709,69 @@ class _SurveyListCard
             ),
 
             // BUTTON
-            Row(
-              children: [
-                Expanded(
-                  child:
-                      ElevatedButton(
-                    onPressed:
-                        onTap,
+            Builder(
+              builder: (context) {
+                Color btnBg;
+                IconData btnIcon;
+                String btnText;
 
-                    style:
-                        ElevatedButton.styleFrom(
-                      elevation:
-                          0,
+                switch (status) {
+                  case SurveyStatus.approved:
+                    btnBg = const Color(0xFF27AE60);
+                    btnIcon = Icons.calendar_today_rounded;
+                    btnText = 'Jadwal Disetujui • Lihat & Chat';
+                    break;
+                  case SurveyStatus.completed:
+                    btnBg = surveyBrownDeep;
+                    btnIcon = Icons.shopping_bag_outlined;
+                    btnText = 'Survei Selesai • Beli Properti';
+                    break;
+                  case SurveyStatus.rejected:
+                    btnBg = const Color(0xFFC0392B);
+                    btnIcon = Icons.refresh_rounded;
+                    btnText = 'Ditolak • Ajukan Jadwal Lain';
+                    break;
+                  case SurveyStatus.cancelled:
+                    btnBg = const Color(0xFF757575);
+                    btnIcon = Icons.info_outline_rounded;
+                    btnText = 'Dibatalkan • Lihat Detail';
+                    break;
+                  case SurveyStatus.pending:
+                  default:
+                    btnBg = surveyBrownDeep;
+                    btnIcon = Icons.schedule_rounded;
+                    btnText = 'Menunggu Konfirmasi • Detail';
+                    break;
+                }
 
-                      backgroundColor:
-                          surveyBrownDeep,
-
-                      foregroundColor:
-                          Colors.white,
-
-                      padding:
-                          const EdgeInsets.symmetric(
-                        vertical:
-                            16,
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onTap,
+                    icon: Icon(btnIcon, size: 18),
+                    label: Text(
+                      btnText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
-
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: btnBg,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
                           16,
                         ),
                       ),
                     ),
-
-                    child: Text(
-                      isApproved
-                          ? 'Lihat Detail'
-                          : 'Lihat Detail',
-
-                      style:
-                          const TextStyle(
-                        fontWeight:
-                            FontWeight
-                                .w800,
-                        fontSize:
-                            14,
-                      ),
-                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ],
         ),
@@ -676,7 +792,6 @@ class _SurveyListCard
       case SurveyStatus.cancelled:
         return 'Pengajuan survei telah dibatalkan.';
       case SurveyStatus.unknown:
-      default:
         return 'Status tidak diketahui.';
     }
   }

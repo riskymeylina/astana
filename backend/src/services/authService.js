@@ -7,9 +7,34 @@ function createError(message, statusCode) {
   return error;
 }
 
+// Cache schema check so we don't inspect information_schema on every request
+let _hasIdUserColumn = null;
+let _hasIsActiveColumn = null;
+
+async function checkUserSchema() {
+  if (_hasIdUserColumn !== null && _hasIsActiveColumn !== null) {
+    return { hasIdUser: _hasIdUserColumn, hasIsActive: _hasIsActiveColumn };
+  }
+  try {
+    const [cols] = await pool.query('SHOW COLUMNS FROM users');
+    const fieldNames = cols.map((c) => c.Field);
+    _hasIdUserColumn = fieldNames.includes('id_user');
+    _hasIsActiveColumn = fieldNames.includes('is_active');
+  } catch (e) {
+    // Default fallback
+    _hasIdUserColumn = false;
+    _hasIsActiveColumn = false;
+  }
+  return { hasIdUser: _hasIdUserColumn, hasIsActive: _hasIsActiveColumn };
+}
+
 async function findUserByEmail(email) {
+  const { hasIdUser, hasIsActive } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+  const isActiveSelect = hasIsActive ? 'is_active' : '1 AS is_active';
+
   const [rows] = await pool.execute(
-    'SELECT id_user AS id, name, email, phone, password_hash, role, is_active, profile_photo_path FROM users WHERE email = ? LIMIT 1',
+    `SELECT ${idCol} AS id, name, email, phone, password_hash, role, ${isActiveSelect}, profile_photo_path FROM users WHERE email = ? LIMIT 1`,
     [email],
   );
 
@@ -17,8 +42,11 @@ async function findUserByEmail(email) {
 }
 
 async function findUserById(id) {
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+
   const [rows] = await pool.execute(
-    'SELECT id_user AS id, name, email, phone, role, profile_photo_path FROM users WHERE id_user = ? LIMIT 1',
+    `SELECT ${idCol} AS id, name, email, phone, role, profile_photo_path FROM users WHERE ${idCol} = ? LIMIT 1`,
     [id],
   );
 
@@ -60,12 +88,15 @@ function normalizeBuyerProfile(row) {
 }
 
 async function findBuyerProfileByUserId(userId) {
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'u.id_user' : 'u.id';
+
   const [rows] = await pool.execute(
     `SELECT u.email, u.phone, p.whatsapp, p.contact_note, p.recipient_name, p.address_line,
             p.province, p.city, p.district, p.subdistrict, p.postal_code, p.landmark
      FROM users u
-     LEFT JOIN user_buyer_profiles p ON p.user_id = u.id_user
-     WHERE u.id_user = ?
+     LEFT JOIN user_buyer_profiles p ON p.user_id = ${idCol}
+     WHERE ${idCol} = ?
      LIMIT 1`,
     [userId],
   );
@@ -83,12 +114,15 @@ async function ensureBuyerProfileRow(userId) {
 }
 
 async function updateBuyerContact(userId, contact) {
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+
   await pool.execute(
     `UPDATE users
      SET email = ?,
          phone = ?,
          updated_at = CURRENT_TIMESTAMP
-     WHERE id_user = ?`,
+     WHERE ${idCol} = ?`,
     [contact.email, contact.phone, userId],
   );
 
@@ -141,13 +175,15 @@ async function upsertBuyerProfile(userId, profile) {
   return findBuyerProfileByUserId(userId);
 }
 
-async function createUser({ name, email, phone, password }) {
+async function createUser({ name, email, phone, password, role = 'pembeli' }) {
   const passwordHash = await hashPassword(password);
+  const validRoles = ['pembeli', 'staf', 'admin'];
+  const assignedRole = validRoles.includes(role) ? role : 'pembeli';
 
   const [result] = await pool.execute(
     `INSERT INTO users (name, email, phone, password_hash, role, profile_photo_path)
-     VALUES (?, ?, ?, ?, 'pembeli', NULL)`,
-    [name, email, phone, passwordHash],
+     VALUES (?, ?, ?, ?, ?, NULL)`,
+    [name, email, phone, passwordHash, assignedRole],
   );
 
   return {
@@ -155,18 +191,18 @@ async function createUser({ name, email, phone, password }) {
     name,
     email,
     phone,
-    role: 'pembeli',
+    role: assignedRole,
     profile_photo_path: null,
   };
 }
 
-async function registerUser({ name, email, phone, password }) {
+async function registerUser({ name, email, phone, password, role = 'pembeli' }) {
   const existingUser = await findUserByEmail(email);
   if (existingUser) {
     throw createError('Email sudah digunakan', 409);
   }
 
-  return createUser({ name, email, phone, password });
+  return createUser({ name, email, phone, password, role });
 }
 
 async function loginUser({ email, password }) {
@@ -191,6 +227,69 @@ async function loginUser({ email, password }) {
     phone: user.phone,
     role: user.role,
     profile_photo_path: user.profile_photo_path,
+  };
+}
+
+async function socialLogin({ provider, providerId, email, name, photoUrl }) {
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+
+  let user = await findUserByEmail(email);
+
+  if (user) {
+    if (user.is_active === 0 || user.is_active === false || user.is_active === '0') {
+      throw createError('Akun Anda telah dinonaktifkan. Silakan hubungi admin.', 403);
+    }
+
+    const updates = [];
+    const params = [];
+    if (!user.provider_id && providerId) {
+      updates.push('provider_id = ?');
+      params.push(providerId);
+    }
+    if (user.auth_provider === 'local' && provider) {
+      updates.push('auth_provider = ?');
+      params.push(provider);
+    }
+    if (!user.profile_photo_path && photoUrl) {
+      updates.push('profile_photo_path = ?');
+      params.push(photoUrl);
+    }
+
+    if (updates.length > 0) {
+      params.push(user.id);
+      await pool.execute(
+        `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE ${idCol} = ?`,
+        params,
+      );
+      user = await findUserById(user.id);
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role,
+      profile_photo_path: user.profile_photo_path,
+      auth_provider: user.auth_provider || provider,
+    };
+  }
+
+  const [result] = await pool.execute(
+    `INSERT INTO users (name, email, phone, password_hash, role, profile_photo_path, auth_provider, provider_id)
+     VALUES (?, ?, '', NULL, 'pembeli', ?, ?, ?)`,
+    [name || 'Pengguna', email, photoUrl || null, provider, providerId || null],
+  );
+
+  return {
+    id: result.insertId,
+    name: name || 'Pengguna',
+    email,
+    phone: '',
+    role: 'pembeli',
+    profile_photo_path: photoUrl || null,
+    auth_provider: provider,
   };
 }
 
@@ -248,6 +347,8 @@ async function findPasswordResetRequestById(id) {
 }
 
 async function incrementPasswordResetAttempt(requestId) {
+  const { hasIdUser } = await checkUserSchema();
+  // table password_reset_requests uses id
   await pool.execute(
     `UPDATE password_reset_requests
      SET attempt_count = attempt_count + 1,
@@ -303,9 +404,12 @@ async function consumePasswordResetRequest(requestId) {
 }
 
 async function updateUserPassword(userId, password) {
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+
   const passwordHash = await hashPassword(password);
   await pool.execute(
-    'UPDATE users SET password_hash = ? WHERE id_user = ?',
+    `UPDATE users SET password_hash = ? WHERE ${idCol} = ?`,
     [passwordHash, userId],
   );
 
@@ -313,7 +417,10 @@ async function updateUserPassword(userId, password) {
 }
 
 async function updateProfilePhotoPath(userId, profilePhotoPath) {
-  await pool.execute('UPDATE users SET profile_photo_path = ? WHERE id_user = ?', [profilePhotoPath, userId]);
+  const { hasIdUser } = await checkUserSchema();
+  const idCol = hasIdUser ? 'id_user' : 'id';
+
+  await pool.execute(`UPDATE users SET profile_photo_path = ? WHERE ${idCol} = ?`, [profilePhotoPath, userId]);
   return findUserById(userId);
 }
 
@@ -417,6 +524,7 @@ module.exports = {
   findUserById,
   registerUser,
   loginUser,
+  socialLogin,
   findLatestPasswordResetRequestByUserId,
   createPasswordResetRequest,
   incrementPasswordResetAttempt,

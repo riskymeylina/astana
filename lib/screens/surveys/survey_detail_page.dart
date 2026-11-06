@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/property_model.dart';
 import '../../models/survey_request_model.dart';
@@ -130,6 +131,61 @@ class _SurveyDetailPageState
         _isLoading = false;
       });
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EXTERNAL ACTIONS (WHATSAPP, MAPS, PURCHASE)
+  // ═══════════════════════════════════════════════════════════
+  Future<void> _openWhatsApp() async {
+    final phone = _survey?.processedByPhone?.trim();
+    final staffName = _survey?.processedByName ?? 'Staf Marketing';
+    final dateStr = (_survey?.isApproved == true || _survey?.isCompleted == true)
+        ? _fmtLong(_survey?.approvedScheduleDate)
+        : _fmtLong(_survey?.requestedDate);
+    final timeStr = (_survey?.isApproved == true || _survey?.isCompleted == true)
+        ? _fmtTime(_survey?.approvedScheduleTime, _survey?.notes)
+        : _fmtTime(_survey?.requestedTime, _survey?.notes);
+
+    final targetPhone = (phone != null && phone.isNotEmpty) ? phone : '6281234567890';
+    final normalized = targetPhone.startsWith('+')
+        ? targetPhone.substring(1)
+        : targetPhone.startsWith('0')
+            ? '62${targetPhone.substring(1)}'
+            : targetPhone;
+
+    final message = 'Halo $staffName, saya ingin konfirmasi survei properti "${_survey?.propertyTitle}" pada jadwal $dateStr jam $timeStr.';
+    final uri = Uri.parse('https://wa.me/$normalized?text=${Uri.encodeComponent(message)}');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka WhatsApp.')),
+      );
+    }
+  }
+
+  Future<void> _openMaps() async {
+    final location = _survey?.propertyLocation ?? _survey?.propertyTitle ?? '';
+    if (location.isEmpty) return;
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(location)}');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka Google Maps.')),
+      );
+    }
+  }
+
+  void _proceedToPurchase() {
+    if (_survey == null) return;
+    Navigator.pushNamed(
+      context,
+      '/purchase-form',
+      arguments: {
+        'propertyId': _survey!.propertyId,
+        'propertyTitle': _survey!.propertyTitle,
+        'propertyPrice': _property?.price ?? 0,
+      },
+    );
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -562,6 +618,75 @@ class _SurveyDetailPageState
                                       ),
                                     ),
 
+                                    if (_survey!.status == 'approved' &&
+                                        (_survey!.processedByName != null && _survey!.processedByName!.isNotEmpty)) ...[
+                                      const SizedBox(height: 20),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F8F0),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFA3E4D7),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 44,
+                                              height: 44,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFF27AE60),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.person_pin_rounded,
+                                                color: Colors.white,
+                                                size: 26,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Staf Pendamping Lapangan:',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFF1E8449),
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    _survey!.processedByName!,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.w900,
+                                                      fontSize: 15,
+                                                      color: Color(0xFF196F3D),
+                                                    ),
+                                                  ),
+                                                  if (_survey!.processedByPhone != null &&
+                                                      _survey!.processedByPhone!.isNotEmpty) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'WhatsApp: ${_survey!.processedByPhone}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Color(0xFF1E8449),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
                                     if (_survey!.status == 'rejected' &&
                                         _survey!.rejectionReason != null &&
                                         _survey!.rejectionReason!.trim().isNotEmpty) ...[
@@ -618,17 +743,275 @@ class _SurveyDetailPageState
                                       Builder(
                                         builder: (context) {
                                           final currentStatus = parseSurveyStatus(_survey?.status);
-                                          final isApproved = currentStatus == SurveyStatus.approved;
-                                          final canCancel = currentStatus != SurveyStatus.cancelled && currentStatus != SurveyStatus.rejected && currentStatus != SurveyStatus.completed;
-                                          final canEdit = currentStatus == SurveyStatus.pending || currentStatus == SurveyStatus.rejected;
 
+                                          if (currentStatus == SurveyStatus.approved) {
+                                            return Column(
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: SizedBox(
+                                                        height: 54,
+                                                        child: ElevatedButton.icon(
+                                                          onPressed: _openWhatsApp,
+                                                          icon: const Icon(
+                                                            Icons.chat_bubble_outline_rounded,
+                                                            size: 18,
+                                                          ),
+                                                          label: const Text(
+                                                            'Chat Staf WA',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.w800,
+                                                              fontSize: 14,
+                                                            ),
+                                                          ),
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: const Color(0xFF27AE60),
+                                                            foregroundColor: Colors.white,
+                                                            elevation: 0,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(16),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: SizedBox(
+                                                        height: 54,
+                                                        child: OutlinedButton.icon(
+                                                          onPressed: _openMaps,
+                                                          icon: const Icon(
+                                                            Icons.map_outlined,
+                                                            size: 18,
+                                                          ),
+                                                          label: const Text(
+                                                            'Buka Maps',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.w800,
+                                                              fontSize: 14,
+                                                            ),
+                                                          ),
+                                                          style: OutlinedButton.styleFrom(
+                                                            foregroundColor: surveyBrown,
+                                                            side: const BorderSide(color: surveyBrown),
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(16),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 8),
+                                                TextButton(
+                                                  onPressed: _cancelSurvey,
+                                                  child: const Text(
+                                                    'Berhalangan hadir? Batalkan Jadwal',
+                                                    style: TextStyle(
+                                                      color: Color(0xFFC0392B),
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }
+
+                                          if (currentStatus == SurveyStatus.completed) {
+                                            return Column(
+                                              children: [
+                                                Container(
+                                                  width: double.infinity,
+                                                  padding: const EdgeInsets.all(16),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFE8F4FD),
+                                                    borderRadius: BorderRadius.circular(16),
+                                                    border: Border.all(color: const Color(0xFFBBDEFB)),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.verified_rounded,
+                                                        color: Color(0xFF1E88E5),
+                                                        size: 28,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: const [
+                                                            Text(
+                                                              'Survei Telah Selesai Dilaksanakan',
+                                                              style: TextStyle(
+                                                                fontWeight: FontWeight.w800,
+                                                                fontSize: 14,
+                                                                color: Color(0xFF0D47A1),
+                                                              ),
+                                                            ),
+                                                            SizedBox(height: 2),
+                                                            Text(
+                                                              'Tertarik dengan unit ini? Amankan unit impian Anda sekarang sebelum terjual.',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Color(0xFF1565C0),
+                                                                height: 1.3,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: SizedBox(
+                                                        height: 54,
+                                                        child: ElevatedButton.icon(
+                                                          onPressed: _proceedToPurchase,
+                                                          icon: const Icon(
+                                                            Icons.shopping_bag_outlined,
+                                                            size: 18,
+                                                          ),
+                                                          label: const Text(
+                                                            'Ajukan Pembelian',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.w800,
+                                                              fontSize: 14,
+                                                            ),
+                                                          ),
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: surveyBrown,
+                                                            foregroundColor: Colors.white,
+                                                            elevation: 0,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(16),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    SizedBox(
+                                                      height: 54,
+                                                      child: OutlinedButton.icon(
+                                                        onPressed: _openWhatsApp,
+                                                        icon: const Icon(
+                                                          Icons.chat_bubble_outline_rounded,
+                                                          size: 18,
+                                                        ),
+                                                        label: const Text(
+                                                          'Tanya Staf',
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.w800,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                        style: OutlinedButton.styleFrom(
+                                                          foregroundColor: const Color(0xFF27AE60),
+                                                          side: const BorderSide(color: Color(0xFF27AE60)),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(16),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            );
+                                          }
+
+                                          if (currentStatus == SurveyStatus.rejected) {
+                                            return SizedBox(
+                                              width: double.infinity,
+                                              height: 54,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () {
+                                                  if (_survey == null) return;
+                                                  Navigator.pushNamed(
+                                                    context,
+                                                    '/survey-form',
+                                                    arguments: {
+                                                      'propertyId': _survey!.propertyId,
+                                                      'propertyTitle': _survey!.propertyTitle,
+                                                      'surveyId': _survey!.id,
+                                                      'requestedDate': _survey!.requestedDate,
+                                                      'requestedTime': _survey!.requestedTime,
+                                                      'notes': _survey!.notes,
+                                                    },
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.refresh_rounded, size: 20),
+                                                label: const Text(
+                                                  'Pilih Jadwal Lain / Ajukan Ulang',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: surveyBrown,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(16),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+
+                                          if (currentStatus == SurveyStatus.cancelled) {
+                                            return SizedBox(
+                                              width: double.infinity,
+                                              height: 54,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () {
+                                                  if (_survey == null) return;
+                                                  Navigator.pushNamed(
+                                                    context,
+                                                    '/survey-form',
+                                                    arguments: {
+                                                      'propertyId': _survey!.propertyId,
+                                                      'propertyTitle': _survey!.propertyTitle,
+                                                    },
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                                                label: const Text(
+                                                  'Ajukan Survei Baru',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: surveyBrown,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(16),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+
+                                          // Default for pending: Ubah Jadwal & Batalkan
                                           return Row(
                                             children: [
                                               Expanded(
                                                 child: SizedBox(
                                                   height: 56,
                                                   child: OutlinedButton.icon(
-                                                    onPressed: canEdit ? () {
+                                                    onPressed: () {
                                                       if (_survey == null) return;
                                                       Navigator.pushNamed(
                                                         context,
@@ -642,23 +1025,21 @@ class _SurveyDetailPageState
                                                           'notes': _survey!.notes,
                                                         },
                                                       );
-                                                    } : null,
+                                                    },
                                                     icon: const Icon(
                                                       Icons.edit_calendar_outlined,
                                                       size: 20,
                                                     ),
-                                                    label: Text(
-                                                      currentStatus == SurveyStatus.rejected ? 'Ajukan Ulang' : 'Ubah Jadwal',
-                                                      style: const TextStyle(
+                                                    label: const Text(
+                                                      'Ubah Jadwal',
+                                                      style: TextStyle(
                                                         fontWeight: FontWeight.w800,
                                                         fontSize: 15,
                                                       ),
                                                     ),
                                                     style: OutlinedButton.styleFrom(
-                                                      foregroundColor: canEdit ? surveyBrown : Colors.grey.shade400,
-                                                      side: BorderSide(
-                                                        color: canEdit ? surveyBrown : Colors.grey.shade300,
-                                                      ),
+                                                      foregroundColor: surveyBrown,
+                                                      side: const BorderSide(color: surveyBrown),
                                                       shape: RoundedRectangleBorder(
                                                         borderRadius: BorderRadius.circular(16),
                                                       ),
@@ -666,14 +1047,12 @@ class _SurveyDetailPageState
                                                   ),
                                                 ),
                                               ),
-
                                               const SizedBox(width: 16),
-
                                               Expanded(
                                                 child: SizedBox(
                                                   height: 56,
                                                   child: ElevatedButton.icon(
-                                                    onPressed: canCancel ? _cancelSurvey : null,
+                                                    onPressed: _cancelSurvey,
                                                     icon: const Icon(
                                                       Icons.close_rounded,
                                                       size: 20,
@@ -686,10 +1065,8 @@ class _SurveyDetailPageState
                                                       ),
                                                     ),
                                                     style: ElevatedButton.styleFrom(
-                                                      backgroundColor: canCancel
-                                                          ? const Color(0xFFC93535)
-                                                          : Colors.grey.shade300,
-                                                      foregroundColor: canCancel ? Colors.white : Colors.grey.shade500,
+                                                      backgroundColor: const Color(0xFFC93535),
+                                                      foregroundColor: Colors.white,
                                                       elevation: 0,
                                                       shape: RoundedRectangleBorder(
                                                         borderRadius: BorderRadius.circular(16),
@@ -799,7 +1176,6 @@ String surveyStatusLabel(dynamic status) {
     case SurveyStatus.cancelled:
       return 'Dibatalkan';
     case SurveyStatus.unknown:
-    default:
       return 'Tidak diketahui';
   }
 }

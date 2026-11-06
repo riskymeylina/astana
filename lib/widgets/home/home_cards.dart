@@ -171,7 +171,7 @@ class HomePromoCard extends StatelessWidget {
                 Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  errorBuilder: (_, _, _) =>
                       Container(color: const Color(0xFFF0DCC0)),
                 ),
                 Container(color: Colors.black.withValues(alpha: 0.28)),
@@ -286,7 +286,7 @@ class HomePropertyGrid extends StatelessWidget {
                       imageUrl,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: const Color(0xFFFFE8C5),
                         child: const Center(
                           child: Icon(

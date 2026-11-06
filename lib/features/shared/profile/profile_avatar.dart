@@ -141,7 +141,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
             ? Image.network(
                 widget.imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                errorBuilder: (_, _, _) => _buildPlaceholder(),
               )
             : _buildPlaceholder(),
       ),

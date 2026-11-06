@@ -47,8 +47,17 @@ async function findAllAvailableProperties({
   }
 
   if (categoryFilter) {
-    conditions.push('category = ?');
-    params.push(categoryFilter);
+    const categories = categoryFilter
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (categories.length === 1) {
+      conditions.push('category = ?');
+      params.push(categories[0]);
+    } else if (categories.length > 1) {
+      conditions.push(`category IN (${categories.map(() => '?').join(', ')})`);
+      params.push(...categories);
+    }
   }
 
   if (minPriceFilter !== null) {
@@ -263,7 +272,15 @@ async function setPrimaryImage(imageId, propertyId) {
   }
 }
 
+async function updatePropertyStatus(propertyId, status) {
+  await pool.execute(
+    'UPDATE properties SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id_property = ?',
+    [status, propertyId]
+  );
+  return findPropertyById(propertyId);
+}
 module.exports = {
+  updatePropertyStatus,
   findAllAvailableProperties,
   findAvailablePropertyFilters,
   findAllProperties,

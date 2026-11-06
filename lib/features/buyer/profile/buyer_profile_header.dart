@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/shared/profile/profile_info_card.dart';
-import '../../../features/shared/profile/profile_avatar.dart';
 import 'buyer_profile_controller.dart';
 
 class BuyerProfileHeader extends StatelessWidget {

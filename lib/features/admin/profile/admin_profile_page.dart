@@ -23,97 +23,101 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Profil Admin',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF2F2318),
-          ),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Profil Admin',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF2F2318),
+              ),
+            ),
+            Text(
+              'Kelola akun dan akses administrasi Anda',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF8A7563),
+                height: 1.2,
+              ),
+            ),
+          ],
         ),
         titleSpacing: 16,
       ),
       body: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          // ── Hero Banner ─────────────────────────────────────────────────
-          _AdminHeroBanner(
-            controller: controller,
-            onUploadSuccess: () => setState(() {}),
-          ),
-          const SizedBox(height: 20),
-
-          // ── Quick Access ────────────────────────────────────────────────
-          const Text(
-            'Akses Cepat',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF2F2318),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Hero Banner ─────────────────────────────────────────────────
+            _AdminHeroBanner(
+              controller: controller,
+              onUploadSuccess: () => setState(() {}),
             ),
-          ),
-          const SizedBox(height: 10),
-          const _QuickAccessGrid(),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // ── Recent Activity ─────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Aktivitas Terakhir',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2F2318),
+            // ── Quick Access ────────────────────────────────────────────────
+            const Text(
+              'Akses Cepat',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2F2318),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const _QuickAccessGrid(),
+            const SizedBox(height: 20),
+
+            // ── Recent Activity ─────────────────────────────────────────────
+            const Text(
+              'Aktivitas Terakhir',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2F2318),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                label: const Text('Lihat Semua'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF8F4E1E),
+                  backgroundColor: const Color(0xFFFFF3E5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  shape: const StadiumBorder(),
                 ),
               ),
-              GestureDetector(
-                onTap: () {},
-                child: const Row(
-                  children: [
-                    Text(
-                      'Lihat Semua',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFB85C1A),
-                      ),
-                    ),
-                    SizedBox(width: 2),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: Color(0xFFB85C1A),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const _RecentActivityTable(),
-          const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 10),
+            const _RecentActivityTable(),
+            const SizedBox(height: 20),
 
-          // ── Bottom Actions (Logout) ────────────────────────
-          _BottomActionTile(
-            icon: Icons.logout_rounded,
-            iconColor: const Color(0xFFC74C4C),
-            iconBg: const Color(0xFFFFEAEA),
-            label: 'Logout',
-            subtitle: 'Keluar dari akun admin secara aman',
-            onTap: () async {
-              await AuthService().clearSession();
-              if (!context.mounted) return;
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-          ),
-        ],
+            // ── Bottom Actions (Logout) ────────────────────────
+            _BottomActionTile(
+              icon: Icons.logout_rounded,
+              iconColor: const Color(0xFFC74C4C),
+              iconBg: const Color(0xFFFFEAEA),
+              label: 'Logout',
+              subtitle: 'Keluar dari akun admin secara aman',
+              onTap: () async {
+                await AuthService().clearSession();
+                if (!context.mounted) return;
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -126,10 +130,7 @@ class _AdminHeroBanner extends StatelessWidget {
   final AdminProfileController controller;
   final VoidCallback? onUploadSuccess;
 
-  const _AdminHeroBanner({
-    required this.controller,
-    this.onUploadSuccess,
-  });
+  const _AdminHeroBanner({required this.controller, this.onUploadSuccess});
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +170,10 @@ class _AdminHeroBanner extends StatelessWidget {
                     child: _HeroIllustration(),
                   ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 22,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -242,7 +246,6 @@ class _AdminHeroBanner extends StatelessWidget {
   }
 }
 
-
 class _RoleBadge extends StatelessWidget {
   final String label;
   const _RoleBadge({required this.label});
@@ -259,7 +262,11 @@ class _RoleBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_user_rounded, size: 11, color: Colors.white),
+          const Icon(
+            Icons.verified_user_rounded,
+            size: 11,
+            color: Colors.white,
+          ),
           const SizedBox(width: 4),
           Text(
             label,
@@ -326,12 +333,16 @@ class _HeroDecorationPainter extends CustomPainter {
     final path = Path()
       ..moveTo(0, size.height * 0.65)
       ..quadraticBezierTo(
-        size.width * 0.3, size.height * 0.4,
-        size.width * 0.6, size.height * 0.7,
+        size.width * 0.3,
+        size.height * 0.4,
+        size.width * 0.6,
+        size.height * 0.7,
       )
       ..quadraticBezierTo(
-        size.width * 0.8, size.height * 0.9,
-        size.width, size.height * 0.6,
+        size.width * 0.8,
+        size.height * 0.9,
+        size.width,
+        size.height * 0.6,
       )
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
@@ -389,8 +400,7 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawPath(door, paint);
 
     // Window
-    final win = Path()
-      ..addRect(Rect.fromLTWH(cx + 10, cy + 6, 12, 12));
+    final win = Path()..addRect(Rect.fromLTWH(cx + 10, cy + 6, 12, 12));
     canvas.drawPath(win, paint);
 
     // Trend arrow (chart)
@@ -423,7 +433,11 @@ class _IllustrationPainter extends CustomPainter {
     final by = cy - 20.0;
     final clipPath = Path()
       ..addRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(bx, by, 28, 34), const Radius.circular(4)));
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(bx, by, 28, 34),
+          const Radius.circular(4),
+        ),
+      );
     canvas.drawPath(clipPath, clipPaint);
 
     // Lines on clipboard
@@ -549,7 +563,7 @@ class _QuickAccessCard extends StatelessWidget {
   final _QuickItem item;
   final double? width;
 
-  const _QuickAccessCard({required this.item, this.width});
+  const _QuickAccessCard({required this.item}) : width = null;
 
   @override
   Widget build(BuildContext context) {
@@ -718,10 +732,8 @@ class _RecentActivityTable extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _entries.length,
-        separatorBuilder: (_, __) => const Divider(
-          color: Color(0xFFF4EAE0),
-          height: 1,
-        ),
+        separatorBuilder: (_, _) =>
+            const Divider(color: Color(0xFFF4EAE0), height: 1),
         itemBuilder: (context, index) {
           final entry = _entries[index];
           return Padding(

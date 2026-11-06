@@ -48,6 +48,7 @@ import 'screens/admin/add_property_page.dart';
 
 import 'features/admin/reports/availability_report_page.dart';
 import 'features/admin/transactions/transactions_page.dart';
+import 'screens/admin/dashboard/web_dashboard_scaffold.dart';
 
 import 'features/buyer/profile/buyer_administration_page.dart';
 
@@ -214,7 +215,7 @@ class _GuardedRouteWidgetState extends State<GuardedRouteWidget> {
         // =====================================================================
         // LOGIKA FILTER AKSES BERBASIS PERAN (ROLE-BASED ACCESS CONTROL)
         // =====================================================================
-        final role = (session?['role'] ?? '').toString().toLowerCase();
+        final role = (session['role'] ?? '').toString().toLowerCase();
 
         // Rute khusus Pembeli (Transaksi & Pengajuan Pembeli)
         const buyerOnlyRoutes = {
@@ -601,6 +602,7 @@ class MyApp extends StatelessWidget {
             );
           },
 
+          '/dashboard': (_) => const WebDashboardScaffold(),
           '/promo-properti': (_) => const PromoPropertiPage(),
           '/explore': (_) => const JelajahPage(),
           '/notifications': (_) => const NotificationsPage(),

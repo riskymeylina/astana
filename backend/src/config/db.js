@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 
 function getDatabaseName() {
-  return process.env.DB_NAME || 'puimey_new';
+  return process.env.DB_NAME || 'puimey';
 }
 
 function getDbConfig({ includeDatabase = true, multipleStatements = false } = {}) {

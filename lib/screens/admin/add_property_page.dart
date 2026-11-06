@@ -213,7 +213,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_service.parseMessage(response.body ?? ''))),
+          SnackBar(content: Text(_service.parseMessage(response.body))),
         );
       }
     } catch (e) {
@@ -349,7 +349,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                                 width: 80,
                                                 height: 80,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => Container(
+                                                errorBuilder: (_, _, _) => Container(
                                                   width: 80,
                                                   height: 80,
                                                   color: Colors.grey.shade200,

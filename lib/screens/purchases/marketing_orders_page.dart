@@ -24,7 +24,6 @@ class _MarketingOrdersPageState extends State<MarketingOrdersPage> {
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
 
   bool _isLoading = true;
-  bool _isLocaleReady = false;
   String? _errorMessage;
   List<PurchaseOrderModel> _orders = const [];
   DateTime? _filterFrom;
@@ -41,7 +40,6 @@ class _MarketingOrdersPageState extends State<MarketingOrdersPage> {
   Future<void> _preparePage() async {
     await initializeDateFormatting('id_ID');
     if (!mounted) return;
-    setState(() => _isLocaleReady = true);
     await _loadOrders();
   }
 
@@ -119,7 +117,7 @@ class _MarketingOrdersPageState extends State<MarketingOrdersPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _orders.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index == 0) return _buildFilterCard();
         final order = _orders[index - 1];
@@ -287,7 +285,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                 ),
               ),
-              _StatusChip(status: order.status),
+              _StatusChip(status: order.status, paymentMethod: order.paymentMethod),
             ],
           ),
           const SizedBox(height: 8),
@@ -314,11 +312,12 @@ class _OrderCard extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final String status;
+  final String? paymentMethod;
 
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.status, this.paymentMethod});
 
   @override
-  Widget build(BuildContext context) => StaffStatusBadge(status: status);
+  Widget build(BuildContext context) => StaffStatusBadge(status: status, paymentMethod: paymentMethod);
 }
 
 class _InfoRow extends StatelessWidget {

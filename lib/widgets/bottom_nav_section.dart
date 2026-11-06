@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
 
 class BottomNavSection extends StatefulWidget {
   final int currentIndex;
@@ -339,7 +338,7 @@ class _FabMenuOverlayState extends State<_FabMenuOverlay>
     const double itemR = 28.0;
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) {
+      builder: (_, _) {
         final t  = _anim.value;
         final dx =  math.cos(angle) * _radius * t;
         final dy = -math.sin(angle) * _radius * t;

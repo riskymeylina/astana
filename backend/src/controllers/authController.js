@@ -51,6 +51,34 @@ function validateLoginBody(body) {
   }
 }
 
+function validateSocialLoginBody(body) {
+  const provider = String(body.provider || '').toLowerCase().trim();
+  if (!['google', 'facebook'].includes(provider)) {
+    throw createError('Provider harus berupa google atau facebook', 400);
+  }
+
+  const email = normalizeEmail(body.email);
+  if (!email || !isValidEmail(email)) {
+    throw createError('Format email tidak valid', 400);
+  }
+
+  const name = String(body.name || '').trim();
+  if (!name) {
+    throw createError('Nama wajib diisi', 400);
+  }
+
+  const providerId = body.providerId ? String(body.providerId).trim() : null;
+  const photoUrl = body.photoUrl ? String(body.photoUrl).trim() : null;
+
+  return {
+    provider,
+    email,
+    name,
+    providerId,
+    photoUrl,
+  };
+}
+
 function validateForgotPasswordBody(body) {
   const email = normalizeEmail(body.email);
   if (!email) {
@@ -318,6 +346,7 @@ async function register(req, res, next) {
       email: normalizeEmail(req.body.email),
       phone: req.body.phone.trim(),
       password: req.body.password,
+      role: ['pembeli', 'staf', 'admin'].includes((req.body.role || '').toLowerCase().trim()) ? (req.body.role || '').toLowerCase().trim() : 'pembeli',
     });
 
     try {
@@ -347,6 +376,31 @@ async function login(req, res, next) {
 
     const token = generateToken(user);
     return res.status(200).json(buildAuthResponse('Login berhasil', token, user));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function socialLogin(req, res, next) {
+  try {
+    const payload = validateSocialLoginBody(req.body);
+
+    const user = await authService.socialLogin(payload);
+
+    try {
+      if (user.created_at && Date.now() - new Date(user.created_at).getTime() < 10000) {
+        await notificationService.notifyStaffAndAdmins({
+          title: 'Pengguna Baru Terdaftar via Social Login',
+          message: `Calon pembeli baru telah terdaftar melalui ${payload.provider}: ${user.name} (${user.email}).`,
+          type: 'user',
+          actionUrl: '/home',
+        });
+      }
+    } catch (_) {}
+
+    const token = generateToken(user);
+    const providerLabel = payload.provider === 'google' ? 'Google' : 'Facebook';
+    return res.status(200).json(buildAuthResponse(`Login ${providerLabel} berhasil`, token, user));
   } catch (error) {
     return next(error);
   }
@@ -607,6 +661,7 @@ async function uploadProfilePhoto(req, res, next) {
 module.exports = {
   register,
   login,
+  socialLogin,
   forgotPassword,
   verifyResetCode,
   resetPassword,

@@ -651,7 +651,7 @@ class _PropertyCard extends StatelessWidget {
                   ? Image.network(
                       thumbnail,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
+                      errorBuilder: (_, _, _) =>
                           const _PropThumbPlaceholder(),
                     )
                   : const _PropThumbPlaceholder(),

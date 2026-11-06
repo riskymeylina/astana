@@ -64,7 +64,7 @@ class _SplashScreenState extends State<SplashScreen>
           Image.asset(
             'assets/images/splash.jpg',
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: Colors.black12),
+            errorBuilder: (_, _, _) => Container(color: Colors.black12),
           ),
           Container(
             decoration: BoxDecoration(
@@ -106,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen>
                               child: Image.asset(
                                 'assets/images/logo.jpg',
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, _, _) => const Icon(
                                   Icons.home_work_rounded,
                                   color: Colors.black87,
                                 ),

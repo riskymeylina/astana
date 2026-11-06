@@ -33,29 +33,38 @@ class DashboardListSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               if (onSeeAll != null)
                 TextButton(
                   onPressed: onSeeAll,
                   style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
+                    foregroundColor: const Color(0xFF8F4E1E),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
-                    'Lihat Semua',
-                    style: TextStyle(
-                      color: Color(0xFFCC7A2E),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Lihat Semua',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 16),
+                    ],
                   ),
                 ),
             ],
@@ -64,7 +73,8 @@ class DashboardListSection extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: items.length,
-              separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200, height: 16),
+              separatorBuilder: (context, index) =>
+                  Divider(color: Colors.grey.shade200, height: 16),
               itemBuilder: (context, index) => items[index],
             ),
           ),
@@ -105,38 +115,38 @@ class DashboardPropertyListItem extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: imageUrl.startsWith('http') 
-                  ? Image.network(
-                      imageUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                child: imageUrl.startsWith('http')
+                    ? Image.network(
+                        imageUrl,
                         width: 50,
                         height: 50,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.image, color: Colors.grey),
-                      ),
-                    )
-                  : imageUrl.isNotEmpty
-                      ? Image.asset(
-                          imageUrl,
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 50,
-                            height: 50,
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.image, color: Colors.grey),
-                          ),
-                        )
-                      : Container(
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
                           width: 50,
                           height: 50,
                           color: Colors.grey.shade200,
                           child: const Icon(Icons.image, color: Colors.grey),
                         ),
+                      )
+                    : imageUrl.isNotEmpty
+                    ? Image.asset(
+                        imageUrl,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 50,
+                          height: 50,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
+                      )
+                    : Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.image, color: Colors.grey),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -145,7 +155,11 @@ class DashboardPropertyListItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -160,14 +174,21 @@ class DashboardPropertyListItem extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   status,
-                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -218,7 +239,11 @@ class DashboardActivityListItem extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -228,10 +253,7 @@ class DashboardActivityListItem extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            time,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
+          Text(time, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ],
       ),
     );

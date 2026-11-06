@@ -15,11 +15,18 @@ class BuyerProfileMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7CCAE)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF0E4D6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +40,7 @@ class BuyerProfileMenu extends StatelessWidget {
                 if (item != section.items.last)
                   const Divider(
                     height: 1,
-                    color: Color(0xFFF0E1CF),
+                    color: Color(0xFFF3ECE4),
                   ),
               ],
             ),

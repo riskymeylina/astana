@@ -7,6 +7,7 @@ import '../../widgets/property_filter_sheet.dart';
 
 class PropertySearchPage extends StatefulWidget {
   final String? initialQuery;
+  final String? initialCategory;
   final String? brand;
   final int? minPrice;
   final int? maxPrice;
@@ -17,6 +18,7 @@ class PropertySearchPage extends StatefulWidget {
   const PropertySearchPage({
     super.key,
     this.initialQuery,
+    this.initialCategory,
     this.brand,
     this.minPrice,
     this.maxPrice,
@@ -67,6 +69,7 @@ class _PropertySearchPageState extends State<PropertySearchPage> {
 
     final response = await _propertyService.getProperties(
       query: _query,
+      category: widget.initialCategory,
       brand: widget.brand,
       minPrice: _minPrice,
       maxPrice: _maxPrice,
@@ -120,6 +123,9 @@ class _PropertySearchPageState extends State<PropertySearchPage> {
 
   List<String> get _activeFilters {
     final filters = <String>[];
+    if (widget.initialCategory?.isNotEmpty == true) {
+      filters.add('Kategori: ${widget.initialCategory}');
+    }
     if (widget.brand?.isNotEmpty == true) filters.add(widget.brand!);
     
     if (_selectedStatus != null) {
@@ -308,7 +314,7 @@ class _PropertyResultCard extends StatelessWidget {
                         width: 88,
                         height: 88,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           width: 88,
                           height: 88,
                           color: const Color(0xFFF0E0CF),

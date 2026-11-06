@@ -1,13 +1,34 @@
 const pool = require('../config/db');
 
-const PAYMENT_ACCOUNT_NUMBER = String(process.env.PAYMENT_ACCOUNT_NUMBER || '1234567890').trim();
-const PAYMENT_ACCOUNT_NAME = String(process.env.PAYMENT_ACCOUNT_NAME || 'PT. Astana Karya Bandawasa').trim();
-const PAYMENT_BANK_NOTE = String(process.env.PAYMENT_BANK_NOTE || 'Bank BCA').trim();
 const PAYMENT_DEADLINE_DAYS = 3;
+
+let schemaEnsured = false;
+async function ensureMidtransSchema() {
+  if (schemaEnsured) return;
+  try {
+    const [cols] = await pool.query(`SHOW COLUMNS FROM property_purchases LIKE 'midtrans_order_id'`);
+    if (cols.length === 0) {
+      await pool.query(`
+        ALTER TABLE property_purchases
+          ADD COLUMN midtrans_order_id varchar(100) DEFAULT NULL,
+          ADD COLUMN midtrans_transaction_id varchar(100) DEFAULT NULL,
+          ADD COLUMN midtrans_qr_url text DEFAULT NULL,
+          ADD COLUMN midtrans_payment_status varchar(50) DEFAULT NULL,
+          ADD COLUMN midtrans_expiry_time datetime DEFAULT NULL,
+          ADD KEY pp_midtrans_order_id_index (midtrans_order_id);
+      `);
+      console.log('[Migration] Midtrans columns added to property_purchases');
+    }
+    schemaEnsured = true;
+  } catch (err) {
+    console.warn('[Migration Warning] ensureMidtransSchema:', err.message);
+  }
+}
 
 const SELECT_COLUMNS = `
   pp.id_purchase AS id,
   pp.buyer_user_id,
+  pp.buyer_record_id,
   pp.property_id,
   pp.payment_method,
   pp.payment_account_number,
@@ -26,6 +47,11 @@ const SELECT_COLUMNS = `
   pp.processed_by_name,
   pp.rejection_reason,
   pp.processed_at,
+  pp.midtrans_order_id,
+  pp.midtrans_transaction_id,
+  pp.midtrans_qr_url,
+  pp.midtrans_payment_status,
+  pp.midtrans_expiry_time,
   pp.created_at,
   pp.updated_at,
   p.title    AS property_title,
@@ -116,13 +142,19 @@ function addDateFilters({ conditions, params, from, to, month, year }) {
   }
 }
 
-async function findAllPurchases({ status, from, to, month, year } = {}) {
+async function findAllPurchases({ status, search, from, to, month, year } = {}) {
   const params = [];
   const conditions = [];
 
   if (status) {
     conditions.push('pp.status = ?');
     params.push(status);
+  }
+
+  if (search && search.trim()) {
+    const s = `%${search.trim()}%`;
+    conditions.push('(pp.buyer_name_snapshot LIKE ? OR p.title LIKE ? OR p.location LIKE ? OR pp.midtrans_order_id LIKE ?)');
+    params.push(s, s, s, s);
   }
 
   addDateFilters({ conditions, params, from, to, month, year });
@@ -153,38 +185,123 @@ async function createPurchase({
   buyerPhoneSnapshot,
   buyerAddressSnapshot,
   notes,
+  midtransOrderId,
+  midtransTransactionId,
+  midtransQrUrl,
+  midtransPaymentStatus,
+  midtransExpiryTime,
 }) {
+  await ensureMidtransSchema();
+
+  const isQris = String(paymentMethod).toUpperCase().includes('QRIS');
+  const accountNumber = isQris ? '-' : '-';
+  const accountName = isQris ? 'Midtrans Payment Gateway' : 'Kasir Astana Karya';
+
   const [result] = await pool.execute(
     `INSERT INTO property_purchases (
        buyer_user_id, property_id, payment_method,
        payment_account_number, payment_account_name, payment_amount, payment_due_at,
        buyer_name_snapshot, buyer_phone_snapshot, buyer_address_snapshot,
-       notes, status
+       notes, status,
+       midtrans_order_id, midtrans_transaction_id, midtrans_qr_url,
+       midtrans_payment_status, midtrans_expiry_time
      )
-     SELECT ?, ?, ?, ?, ?, p.price, DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?, ?, ?, 'pending_payment'
+     SELECT ?, ?, ?, ?, ?, p.price, DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?, ?, ?, 'pending_payment',
+            ?, ?, ?, ?, ?
      FROM properties p
      WHERE p.id_property = ?`,
     [
       buyerUserId,
       propertyId,
       paymentMethod,
-      PAYMENT_ACCOUNT_NUMBER,
-      PAYMENT_ACCOUNT_NAME,
+      accountNumber,
+      accountName,
       PAYMENT_DEADLINE_DAYS,
       buyerNameSnapshot,
       buyerPhoneSnapshot || null,
       buyerAddressSnapshot || null,
       notes || null,
+      midtransOrderId || null,
+      midtransTransactionId || null,
+      midtransQrUrl || null,
+      midtransPaymentStatus || (isQris ? 'pending' : null),
+      midtransExpiryTime || null,
       propertyId,
     ],
   );
 
   await pool.execute(
     `UPDATE properties SET status = 'Sedang Dibooking', updated_at = CURRENT_TIMESTAMP WHERE id_property = ?`,
-    [propertyId]
+    [propertyId],
   );
 
   return findPurchaseById(result.insertId);
+}
+
+async function updateMidtransPayment({
+  id,
+  orderId,
+  transactionId,
+  qrUrl,
+  paymentStatus,
+  expiryTime,
+}) {
+  await ensureMidtransSchema();
+  await pool.execute(
+    `UPDATE property_purchases
+     SET midtrans_order_id = COALESCE(?, midtrans_order_id),
+         midtrans_transaction_id = COALESCE(?, midtrans_transaction_id),
+         midtrans_qr_url = COALESCE(?, midtrans_qr_url),
+         midtrans_payment_status = COALESCE(?, midtrans_payment_status),
+         midtrans_expiry_time = COALESCE(?, midtrans_expiry_time)
+     WHERE id_purchase = ?`,
+    [orderId || null, transactionId || null, qrUrl || null, paymentStatus || null, expiryTime || null, id],
+  );
+  return findPurchaseById(id);
+}
+
+async function updateMidtransStatus({ id, paymentStatus, transactionId }) {
+  await ensureMidtransSchema();
+  await pool.execute(
+    `UPDATE property_purchases
+     SET midtrans_payment_status = ?,
+         midtrans_transaction_id = COALESCE(?, midtrans_transaction_id)
+     WHERE id_purchase = ?`,
+    [paymentStatus, transactionId || null, id],
+  );
+  return findPurchaseById(id);
+}
+
+async function findPurchaseByMidtransOrderId(orderId) {
+  await ensureMidtransSchema();
+  const [rows] = await pool.execute(
+    `SELECT ${SELECT_COLUMNS} ${BASE_JOIN} WHERE pp.midtrans_order_id = ? LIMIT 1`,
+    [orderId],
+  );
+  return rows[0] || null;
+}
+
+async function confirmPurchaseByMidtrans({ id, transactionId }) {
+  await pool.execute(
+    `UPDATE property_purchases
+     SET status = 'confirmed',
+         midtrans_payment_status = 'settlement',
+         midtrans_transaction_id = COALESCE(?, midtrans_transaction_id),
+         processed_by_name = 'Midtrans Gateway',
+         processed_at = NOW()
+     WHERE id_purchase = ?`,
+    [transactionId || null, id],
+  );
+
+  const purchase = await findPurchaseById(id);
+  if (purchase) {
+    await pool.execute(
+      `UPDATE properties SET status = 'Terjual', updated_at = CURRENT_TIMESTAMP WHERE id_property = ?`,
+      [purchase.property_id],
+    );
+  }
+
+  return purchase;
 }
 
 async function setPaymentProof({ id, paymentProofPath }) {
@@ -249,7 +366,7 @@ async function updatePurchaseStatus({
 
 async function findPropertyForPurchase(propertyId) {
   const [rows] = await pool.execute(
-    `SELECT id_property AS id, title, location, status FROM properties WHERE id_property = ? LIMIT 1`,
+    `SELECT id_property AS id, title, location, price, status FROM properties WHERE id_property = ? LIMIT 1`,
     [propertyId],
   );
   return rows[0] || null;
@@ -280,10 +397,12 @@ module.exports = {
   findPurchasesByBuyerId,
   findAllPurchases,
   createPurchase,
+  updateMidtransPayment,
+  updateMidtransStatus,
+  findPurchaseByMidtransOrderId,
+  confirmPurchaseByMidtrans,
   setPaymentProof,
   updatePurchaseStatus,
   findPropertyForPurchase,
   findBuyerProfile,
-  PAYMENT_BANK_NOTE,
 };
-

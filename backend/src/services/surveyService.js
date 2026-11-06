@@ -29,7 +29,10 @@ async function findSurveyRequestsByBuyerId(buyerUserId) {
             p.title AS property_title, p.location AS property_location,
             (SELECT image_url FROM property_gallery_images WHERE property_id = p.id_property ORDER BY sort_order ASC, id_property_gallery_image ASC LIMIT 1) AS property_image_url,
             buyer.name AS buyer_name,
-            processor.name AS processed_by_name
+            buyer.phone AS buyer_phone,
+            buyer.email AS buyer_email,
+            processor.name AS processed_by_name,
+            processor.phone AS processed_by_phone
      FROM survey_requests sr
      INNER JOIN properties p ON p.id_property = sr.property_id
      INNER JOIN users buyer ON buyer.id_user = sr.buyer_user_id
@@ -64,13 +67,18 @@ async function findSurveyRequestsForMarketing({ status } = {}) {
             p.title AS property_title, p.location AS property_location,
             (SELECT image_url FROM property_gallery_images WHERE property_id = p.id_property ORDER BY sort_order ASC, id_property_gallery_image ASC LIMIT 1) AS property_image_url,
             buyer.name AS buyer_name,
-            processor.name AS processed_by_name
+            buyer.phone AS buyer_phone,
+            buyer.email AS buyer_email,
+            processor.name AS processed_by_name,
+            processor.phone AS processed_by_phone
      FROM survey_requests sr
      INNER JOIN properties p ON p.id_property = sr.property_id
      INNER JOIN users buyer ON buyer.id_user = sr.buyer_user_id
      LEFT JOIN users processor ON processor.id_user = sr.processed_by_user_id
      ${whereClause}
-     ORDER BY FIELD(sr.status, 'pending', 'approved', 'completed', 'rejected'), sr.created_at DESC, sr.id_survey DESC`,
+     ORDER BY COALESCE(sr.approved_schedule_date, sr.requested_date) ASC,
+              FIELD(sr.status, 'pending', 'approved', 'completed', 'rejected'),
+              sr.id_survey DESC`,
     params,
   );
 
@@ -90,7 +98,10 @@ async function findSurveyRequestById(id) {
             p.title AS property_title, p.location AS property_location,
             (SELECT image_url FROM property_gallery_images WHERE property_id = p.id_property ORDER BY sort_order ASC, id_property_gallery_image ASC LIMIT 1) AS property_image_url,
             buyer.name AS buyer_name,
-            processor.name AS processed_by_name
+            buyer.phone AS buyer_phone,
+            buyer.email AS buyer_email,
+            processor.name AS processed_by_name,
+            processor.phone AS processed_by_phone
      FROM survey_requests sr
      INNER JOIN properties p ON p.id_property = sr.property_id
      INNER JOIN users buyer ON buyer.id_user = sr.buyer_user_id

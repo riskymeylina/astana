@@ -17,9 +17,11 @@ class InvoicePrintPage extends StatelessWidget {
     return 'INV/$year/${transaction.id.toString().padLeft(4, '0')}';
   }
 
-  String _formatCurrency(double amount) =>
-      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
-          .format(amount);
+  String _formatCurrency(double amount) => NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  ).format(amount);
 
   String _formatDate(String? raw, {bool withTime = false}) {
     if (raw == null || raw.isEmpty) return '-';
@@ -44,7 +46,20 @@ class InvoicePrintPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: _brown,
         foregroundColor: Colors.white,
-        title: const Text('Invoice', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Invoice',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Text(
+              'Pratinjau dan bagikan faktur transaksi',
+              style: TextStyle(fontSize: 11, height: 1.2),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_rounded),
@@ -60,7 +75,9 @@ class InvoicePrintPage extends StatelessWidget {
             tooltip: 'Download PDF',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fitur download PDF belum tersedia')),
+                const SnackBar(
+                  content: Text('Fitur download PDF belum tersedia'),
+                ),
               );
             },
           ),
@@ -97,8 +114,11 @@ class InvoicePrintPage extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.home_work_rounded,
-                        color: Colors.white, size: 36),
+                    const Icon(
+                      Icons.home_work_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -117,7 +137,9 @@ class InvoicePrintPage extends StatelessWidget {
                           Text(
                             _invoiceNumber,
                             style: const TextStyle(
-                                color: Colors.white70, fontSize: 13),
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -128,7 +150,9 @@ class InvoicePrintPage extends StatelessWidget {
                         Text(
                           _formatDate(tx.createdAt),
                           style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         _StatusBadge(status: tx.status),
@@ -156,17 +180,20 @@ class InvoicePrintPage extends StatelessWidget {
                                 Text(
                                   tx.buyerNameSnapshot,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
                                 if (tx.buyerPhoneSnapshot != null)
                                   _InfoLine(
-                                      icon: Icons.phone_rounded,
-                                      text: tx.buyerPhoneSnapshot!),
+                                    icon: Icons.phone_rounded,
+                                    text: tx.buyerPhoneSnapshot!,
+                                  ),
                                 if (tx.buyerAddress != null)
                                   _InfoLine(
-                                      icon: Icons.location_on_rounded,
-                                      text: tx.buyerAddress!),
+                                    icon: Icons.location_on_rounded,
+                                    text: tx.buyerAddress!,
+                                  ),
                               ],
                             ),
                           ),
@@ -179,22 +206,29 @@ class InvoicePrintPage extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _InvoiceRow(
-                                    label: 'Metode', value: tx.paymentMethod),
+                                  label: 'Metode',
+                                  value: tx.paymentMethod,
+                                ),
                                 if (tx.bankName != null)
                                   _InvoiceRow(
-                                      label: 'Bank', value: tx.bankName!),
+                                    label: 'Bank',
+                                    value: tx.bankName!,
+                                  ),
                                 if (tx.bankAccountNumber != null)
                                   _InvoiceRow(
-                                      label: 'No. Rekening',
-                                      value: tx.bankAccountNumber!),
+                                    label: 'No. Rekening',
+                                    value: tx.bankAccountNumber!,
+                                  ),
                                 if (tx.bankAccountName != null)
                                   _InvoiceRow(
-                                      label: 'Atas Nama',
-                                      value: tx.bankAccountName!),
+                                    label: 'Atas Nama',
+                                    value: tx.bankAccountName!,
+                                  ),
                                 if (tx.paymentDueAt != null)
                                   _InvoiceRow(
-                                      label: 'Jatuh Tempo',
-                                      value: _formatDate(tx.paymentDueAt)),
+                                    label: 'Jatuh Tempo',
+                                    value: _formatDate(tx.paymentDueAt),
+                                  ),
                               ],
                             ),
                           ),
@@ -217,7 +251,10 @@ class InvoicePrintPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Table(
-                      border: TableBorder.all(color: _border, borderRadius: BorderRadius.circular(8)),
+                      border: TableBorder.all(
+                        color: _border,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       columnWidths: const {
                         0: FlexColumnWidth(3),
                         1: FlexColumnWidth(1),
@@ -241,18 +278,23 @@ class InvoicePrintPage extends StatelessWidget {
                                   Text(
                                     tx.propertyTitle,
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                   Text(
                                     tx.propertyLocation,
                                     style: const TextStyle(
-                                        fontSize: 11, color: Colors.grey),
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            const _TableCell(child: Text('1', style: TextStyle(fontSize: 13))),
+                            const _TableCell(
+                              child: Text('1', style: TextStyle(fontSize: 13)),
+                            ),
                             _TableCell(
                               align: Alignment.centerRight,
                               child: Text(
@@ -272,7 +314,9 @@ class InvoicePrintPage extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: _brownLight,
                           borderRadius: BorderRadius.circular(8),
@@ -284,7 +328,9 @@ class InvoicePrintPage extends StatelessWidget {
                             const Text(
                               'Total: ',
                               style: TextStyle(
-                                  fontSize: 15, fontWeight: FontWeight.w500),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             Text(
                               _formatCurrency(tx.payableAmount),
@@ -308,14 +354,19 @@ class InvoicePrintPage extends StatelessWidget {
                       const Text(
                         'Catatan',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: _brown),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: _brown,
+                        ),
                       ),
                       const SizedBox(height: 6),
-                      Text(tx.notes!,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black87)),
+                      Text(
+                        tx.notes!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                     ],
 
@@ -324,21 +375,26 @@ class InvoicePrintPage extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _InvoiceRow(
-                              label: 'Dibuat',
-                              value: _formatDate(tx.createdAt, withTime: true)),
+                            label: 'Dibuat',
+                            value: _formatDate(tx.createdAt, withTime: true),
+                          ),
                         ),
                         if (tx.confirmedAt != null)
                           Expanded(
                             child: _InvoiceRow(
-                                label: 'Dikonfirmasi',
-                                value: _formatDate(tx.confirmedAt,
-                                    withTime: true)),
+                              label: 'Dikonfirmasi',
+                              value: _formatDate(
+                                tx.confirmedAt,
+                                withTime: true,
+                              ),
+                            ),
                           ),
                         if (tx.verifiedBy != null)
                           Expanded(
                             child: _InvoiceRow(
-                                label: 'Diverifikasi Oleh',
-                                value: tx.verifiedBy!),
+                              label: 'Diverifikasi Oleh',
+                              value: tx.verifiedBy!,
+                            ),
                           ),
                       ],
                     ),
@@ -354,14 +410,19 @@ class InvoicePrintPage extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.cancel_rounded,
-                                color: Colors.red, size: 16),
+                            const Icon(
+                              Icons.cancel_rounded,
+                              color: Colors.red,
+                              size: 16,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Alasan Penolakan: ${tx.rejectionReason}',
                                 style: const TextStyle(
-                                    fontSize: 12, color: Colors.red),
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                           ],
@@ -374,7 +435,10 @@ class InvoicePrintPage extends StatelessWidget {
 
               // Footer bar
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 24,
+                ),
                 decoration: const BoxDecoration(
                   color: _brownLight,
                   borderRadius: BorderRadius.only(
@@ -435,7 +499,10 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-            color: color, fontWeight: FontWeight.bold, fontSize: 11),
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -451,12 +518,15 @@ class _Section extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                fontSize: 11,
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5)),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
         const SizedBox(height: 6),
         child,
       ],
@@ -479,8 +549,11 @@ class _InfoLine extends StatelessWidget {
           Icon(icon, size: 13, color: Colors.grey),
           const SizedBox(width: 4),
           Expanded(
-              child: Text(text,
-                  style: const TextStyle(fontSize: 12, color: Colors.black87))),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
         ],
       ),
     );
@@ -499,13 +572,15 @@ class _InvoiceRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(
+            '$label: ',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -526,7 +601,10 @@ class _TableHeader extends StatelessWidget {
         text,
         textAlign: align,
         style: const TextStyle(
-            fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF7A3B1E)),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          color: Color(0xFF7A3B1E),
+        ),
       ),
     );
   }

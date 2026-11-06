@@ -19,9 +19,12 @@ class _MarketingSurveyRequestsPageState
   final SurveyService _surveyService = SurveyService();
 
   bool _isLoading = true;
+  bool _isFetching = false;
   bool _isLocaleReady = false;
   bool _isSubmitting = false;
+  bool _hasLoadedSurveys = false;
   String _selectedStatus = 'all';
+  int _loadRequestId = 0;
   String? _errorMessage;
   List<SurveyRequestModel> _surveys = const [];
 
@@ -45,30 +48,55 @@ class _MarketingSurveyRequestsPageState
   }
 
   Future<void> _loadSurveys() async {
+    final requestId = ++_loadRequestId;
+    final isInitialLoad = !_hasLoadedSurveys;
     setState(() {
-      _isLoading = true;
+      if (isInitialLoad) _isLoading = true;
+      _isFetching = true;
       _errorMessage = null;
     });
 
-    final response = await _surveyService.getMarketingSurveyRequests(
-      status: _selectedStatus == 'all' ? null : _selectedStatus,
-    );
-    if (!mounted) {
-      return;
-    }
+    try {
+      final response = await _surveyService.getMarketingSurveyRequests(
+        status: _selectedStatus == 'all' ? null : _selectedStatus,
+      );
+      if (!mounted || requestId != _loadRequestId) return;
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        setState(() {
+          _surveys = _surveyService.parseSurveys(response.body);
+          _hasLoadedSurveys = true;
+          _isLoading = false;
+          _isFetching = false;
+        });
+        return;
+      }
+
+      final message = _surveyService.parseMessage(response.body);
       setState(() {
-        _surveys = _surveyService.parseSurveys(response.body);
         _isLoading = false;
+        _isFetching = false;
+        if (!_hasLoadedSurveys) _errorMessage = message;
       });
-      return;
+      if (_hasLoadedSurveys) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (error) {
+      if (!mounted || requestId != _loadRequestId) return;
+      final message = 'Gagal memuat permintaan survei: $error';
+      setState(() {
+        _isLoading = false;
+        _isFetching = false;
+        if (!_hasLoadedSurveys) _errorMessage = message;
+      });
+      if (_hasLoadedSurveys) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
     }
-
-    setState(() {
-      _errorMessage = _surveyService.parseMessage(response.body);
-      _isLoading = false;
-    });
   }
 
   String _formatDate(String? value) {
@@ -111,8 +139,15 @@ class _MarketingSurveyRequestsPageState
   }
 
   Future<void> _approveSurvey(SurveyRequestModel survey) async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final lastAllowedDate = DateTime(today.year, today.month + 1, 0);
+    final requestedDate = _parseSurveyDate(survey.requestedDate);
     DateTime selectedDate =
-        _parseSurveyDate(survey.requestedDate) ?? DateTime.now();
+        requestedDate != null &&
+            !DateUtils.dateOnly(requestedDate).isBefore(today) &&
+            !DateUtils.dateOnly(requestedDate).isAfter(lastAllowedDate)
+        ? DateUtils.dateOnly(requestedDate)
+        : today;
     TimeOfDay selectedTime =
         _parseSurveyTime(survey.requestedTime) ??
         const TimeOfDay(hour: 10, minute: 0);
@@ -136,8 +171,8 @@ class _MarketingSurveyRequestsPageState
                   final picked = await showDatePicker(
                     context: dialogContext,
                     initialDate: selectedDate,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime.now().add(const Duration(days: 180)),
+                    firstDate: today,
+                    lastDate: lastAllowedDate,
                     helpText: 'Pilih tanggal final',
                     cancelText: 'Batal',
                     confirmText: 'Pilih',
@@ -231,37 +266,45 @@ class _MarketingSurveyRequestsPageState
 
   Future<void> _rejectSurvey(SurveyRequestModel survey) async {
     final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tolak survei'),
-        content: TextField(
-          controller: reasonController,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Alasan penolakan'),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Tolak survei'),
+            content: TextField(
+              controller: reasonController,
+              maxLines: 3,
+              maxLength: 500,
+              onChanged: (_) => setDialogState(() {}),
+              decoration: const InputDecoration(labelText: 'Alasan penolakan'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: reasonController.text.trim().isEmpty
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                child: const Text('Simpan'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (confirmed != true || !mounted) {
-      return;
+      if (confirmed == true && mounted) {
+        await _submitStatusUpdate(
+          surveyId: survey.id,
+          status: 'rejected',
+          rejectionReason: reasonController.text.trim(),
+        );
+      }
+    } finally {
+      reasonController.dispose();
     }
-
-    await _submitStatusUpdate(
-      surveyId: survey.id,
-      status: 'rejected',
-      rejectionReason: reasonController.text.trim(),
-    );
   }
 
   Future<void> _completeSurvey(SurveyRequestModel survey) async {
@@ -269,7 +312,9 @@ class _MarketingSurveyRequestsPageState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Selesaikan survei'),
-        content: const Text('Apakah Anda yakin ingin menandai survei ini sebagai selesai?'),
+        content: const Text(
+          'Apakah Anda yakin ingin menandai survei ini sebagai selesai?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -287,10 +332,7 @@ class _MarketingSurveyRequestsPageState
       return;
     }
 
-    await _submitStatusUpdate(
-      surveyId: survey.id,
-      status: 'completed',
-    );
+    await _submitStatusUpdate(surveyId: survey.id, status: 'completed');
   }
 
   Future<void> _submitStatusUpdate({
@@ -300,32 +342,33 @@ class _MarketingSurveyRequestsPageState
     String? approvedScheduleTime,
     String? rejectionReason,
   }) async {
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isSubmitting = true);
+    try {
+      final response = await _surveyService.updateSurveyStatus(
+        surveyId: surveyId,
+        status: status,
+        approvedScheduleDate: approvedScheduleDate,
+        approvedScheduleTime: approvedScheduleTime,
+        rejectionReason: rejectionReason,
+      );
+      if (!mounted) return;
 
-    final response = await _surveyService.updateSurveyStatus(
-      surveyId: surveyId,
-      status: status,
-      approvedScheduleDate: approvedScheduleDate,
-      approvedScheduleTime: approvedScheduleTime,
-      rejectionReason: rejectionReason,
-    );
+      final message = _surveyService.parseMessage(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
 
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_surveyService.parseMessage(response.body))),
-    );
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      await _loadSurveys();
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await _loadSurveys();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memperbarui status survei: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -343,10 +386,14 @@ class _MarketingSurveyRequestsPageState
           const BragaPageHeader(
             title: 'Permintaan Jadwal Survei',
             subtitle: 'Kelola semua permintaan jadwal survei properti Anda',
-            decorativeIcon: Icons.assignment_outlined,
+            decorativeIcon: Icons.event_available_rounded,
           ),
           _buildFilterBar(),
-          if (_isSubmitting) const LinearProgressIndicator(minHeight: 2, color: Color(0xFF8F4E1E)),
+          if (_isSubmitting || (_isFetching && _hasLoadedSurveys))
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: Color(0xFF8F4E1E),
+            ),
           Expanded(
             child: RefreshIndicator(
               color: const Color(0xFF8F4E1E),
@@ -362,7 +409,7 @@ class _MarketingSurveyRequestsPageState
   Widget _buildFilterBar() {
     const filters = [
       ('all', 'Semua', Icons.grid_view_rounded),
-      ('pending', 'Pending', Icons.hourglass_top_rounded),
+      ('pending', 'Menunggu', Icons.hourglass_top_rounded),
       ('approved', 'Disetujui', Icons.check_circle_outline_rounded),
       ('completed', 'Selesai', Icons.task_alt_rounded),
       ('rejected', 'Ditolak', Icons.cancel_outlined),
@@ -393,36 +440,58 @@ class _MarketingSurveyRequestsPageState
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
                     color: isActive ? const Color(0xFF8F4E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: isActive ? const Color(0xFF8F4E1E) : const Color(0xFFE0CCBA),
+                      color: isActive
+                          ? const Color(0xFF8F4E1E)
+                          : const Color(0xFFE0CCBA),
                     ),
                     boxShadow: isActive
-                        ? [const BoxShadow(color: Color(0x228F4E1E), blurRadius: 8, offset: Offset(0, 2))]
+                        ? [
+                            const BoxShadow(
+                              color: Color(0x228F4E1E),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ]
                         : [],
                   ),
                   child: Row(
                     children: [
-                      Icon(icon, size: 14, color: isActive ? Colors.white : const Color(0xFF6C4A2F)),
+                      Icon(
+                        icon,
+                        size: 14,
+                        color: isActive
+                            ? Colors.white
+                            : const Color(0xFF6C4A2F),
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         label,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: isActive ? Colors.white : const Color(0xFF5A3A22),
+                          color: isActive
+                              ? Colors.white
+                              : const Color(0xFF5A3A22),
                         ),
                       ),
                       if (!_isLoading && count > 0) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: isActive
-                                ? Colors.white.withOpacity(0.25)
+                                ? Colors.white.withValues(alpha: 0.25)
                                 : const Color(0xFFE7CCAE),
                             borderRadius: BorderRadius.circular(999),
                           ),
@@ -431,7 +500,9 @@ class _MarketingSurveyRequestsPageState
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: isActive ? Colors.white : const Color(0xFF8F4E1E),
+                              color: isActive
+                                  ? Colors.white
+                                  : const Color(0xFF8F4E1E),
                             ),
                           ),
                         ),
@@ -478,9 +549,8 @@ class _MarketingSurveyRequestsPageState
           Padding(
             padding: EdgeInsets.all(24),
             child: _MarketingEmptyCard(
-              title: 'Belum ada request survei',
-              message:
-                  'Pengajuan buyer yang masuk dari backend akan tampil di halaman ini.',
+              title: 'Belum ada permintaan survei',
+              message: 'Pengajuan pembeli akan tampil di halaman ini.',
             ),
           ),
         ],
@@ -491,7 +561,7 @@ class _MarketingSurveyRequestsPageState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _surveys.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final survey = _surveys[index];
         final badge = _badgeStyle(survey.status);
@@ -500,33 +570,35 @@ class _MarketingSurveyRequestsPageState
           final raw = v?.trim();
           if (raw == null || raw.isEmpty) return 'Belum Ditentukan';
           try {
-            return DateFormat('dd/MM/yyyy', 'id_ID')
-                .format(DateTime.parse(raw));
+            return DateFormat(
+              'dd/MM/yyyy',
+              'id_ID',
+            ).format(DateTime.parse(raw));
           } catch (_) {
             return raw;
           }
         }
 
         return Container(
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE9D7BF)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFECE2D8)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x06000000),
-                blurRadius: 6,
-                offset: Offset(0, 2),
+                color: Color(0x0A3D2415),
+                blurRadius: 16,
+                offset: Offset(0, 5),
               ),
             ],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Info Utama ─────────────────────────────────────────
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                  padding: const EdgeInsets.fromLTRB(2, 4, 8, 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -534,41 +606,51 @@ class _MarketingSurveyRequestsPageState
                       Text(
                         survey.propertyTitle,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF2A1A0E),
+                          color: Color(0xFF342216),
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 5),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined,
-                              size: 11, color: Color(0xFF8A6A48)),
-                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Color(0xFF8A6A48),
+                          ),
+                          const SizedBox(width: 5),
                           Expanded(
                             child: Text(
                               survey.propertyLocation,
                               style: const TextStyle(
-                                  fontSize: 11, color: Color(0xFF8A6A48)),
-                              maxLines: 1,
+                                fontSize: 12,
+                                height: 1.3,
+                                color: Color(0xFF80664F),
+                              ),
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 14),
                       Row(
                         children: [
                           Expanded(
                             child: _MidInfoCell(
                               icon: Icons.person_outline_rounded,
-                              label: 'Buyer',
-                              value: survey.buyerName,
+                              label: 'Pembeli',
+                              value:
+                                  (survey.buyerPhone != null &&
+                                      survey.buyerPhone!.isNotEmpty)
+                                  ? '${survey.buyerName}\n(${survey.buyerPhone})'
+                                  : survey.buyerName,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: _MidInfoCell(
                               icon: Icons.calendar_today_outlined,
@@ -580,7 +662,7 @@ class _MarketingSurveyRequestsPageState
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: _MidInfoCell(
                               icon: Icons.access_time_outlined,
@@ -595,72 +677,75 @@ class _MarketingSurveyRequestsPageState
                           ),
                         ],
                       ),
-                      if ((survey.notes ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 5),
-                        _MidInfoCell(
-                          icon: Icons.notes_rounded,
-                          label: 'Catatan',
-                          value: survey.notes!,
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
-              // ── Divider vertikal ───────────────────────────────────
-              Container(width: 1, color: const Color(0xFFEEDDCC)),
-              // ── Panel Kanan (status + tombol) ──────────────────────
-              SizedBox(
-                width: 150,
+              Container(
+                width: 170,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF9F2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFF0E2D2)),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                  padding: EdgeInsets.zero,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Badge status
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: badge.background,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(badge.icon,
-                                size: 10, color: badge.foreground),
-                            const SizedBox(width: 4),
-                            Text(
-                              badge.label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badge.background,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                badge.icon,
+                                size: 12,
                                 color: badge.foreground,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 5),
+                              Text(
+                                badge.label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: badge.foreground,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       // ID + Tanggal
                       Text(
                         '#SRV-${survey.id.toString().padLeft(6, '0')}',
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF2A1A0E),
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 5),
                       Text(
-                        () {
-                          if (survey.isApproved || survey.isCompleted) {
-                            return shortDate(survey.approvedScheduleDate);
-                          }
-                          return shortDate(survey.requestedDate);
-                        }(),
+                        shortDate(
+                          (survey.isApproved || survey.isCompleted)
+                              ? survey.approvedScheduleDate
+                              : survey.requestedDate,
+                        ),
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -678,16 +763,18 @@ class _MarketingSurveyRequestsPageState
                                 : () => _rejectSurvey(survey),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFC0392B),
-                              side: const BorderSide(
-                                  color: Color(0xFFC0392B)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 4),
+                              side: const BorderSide(color: Color(0xFFE6A39C)),
+                              minimumSize: const Size.fromHeight(34),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                             ),
-                            child: const Text('Tolak',
-                                style: TextStyle(fontSize: 11)),
+                            child: const Text(
+                              'Tolak',
+                              style: TextStyle(fontSize: 11),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -699,14 +786,17 @@ class _MarketingSurveyRequestsPageState
                                 : () => _approveSurvey(survey),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF6B2B0A),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 4),
+                              minimumSize: const Size.fromHeight(34),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                             ),
-                            child: const Text('Setujui',
-                                style: TextStyle(fontSize: 11)),
+                            child: const Text(
+                              'Setujui',
+                              style: TextStyle(fontSize: 11),
+                            ),
                           ),
                         ),
                       ],
@@ -714,21 +804,23 @@ class _MarketingSurveyRequestsPageState
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
-                          child: FilledButton.icon(
+                          child: FilledButton(
                             onPressed: _isSubmitting
                                 ? null
                                 : () => _completeSurvey(survey),
-                            icon: const Icon(Icons.check_circle_outline, size: 14),
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF27AE60),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 4),
+                              backgroundColor: const Color(0xFF824316),
+                              minimumSize: const Size.fromHeight(34),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                             ),
-                            label: const Text('Selesai',
-                                style: TextStyle(fontSize: 11)),
+                            child: const Text(
+                              'Selesai',
+                              style: TextStyle(fontSize: 11),
+                            ),
                           ),
                         ),
                       ],
@@ -935,7 +1027,7 @@ _BadgeStyle _badgeStyle(String status) {
       );
     default:
       return const _BadgeStyle(
-        label: 'Pending',
+        label: 'Menunggu',
         background: Color(0xFFFFF3D9),
         foreground: Color(0xFF9A6700),
         icon: Icons.hourglass_top_rounded,
@@ -989,24 +1081,6 @@ class _MidInfoCell extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
       ],
-    );
-  }
-}
-
-class _PropertyPhotoPlaceholder extends StatelessWidget {
-  const _PropertyPhotoPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF5EAD8),
-      child: const Center(
-        child: Icon(
-          Icons.home_work_rounded,
-          size: 32,
-          color: Color(0xFFCB9A6A),
-        ),
-      ),
     );
   }
 }

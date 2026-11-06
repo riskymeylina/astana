@@ -82,9 +82,6 @@ Map<String, List<NotificationModel>> _groupByDay(
 
 // ─── Colour palette (matches app brown/cream theme) ───────────────────────────
 const _kBrown      = Color(0xFF6E340B);
-const _kBrownMid   = Color(0xFF8D4E1B);
-const _kBrownLight = Color(0xFFF0A23A);
-const _kCream      = Color(0xFFFDD096);
 const _kCreamBg    = Color(0xFFFFF6EC);
 const _kCreamCard  = Color(0xFFFFF1DD);
 const _kBorder     = Color(0xFFE7D9C8);
@@ -104,9 +101,9 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   final NotificationService _notificationService = NotificationService();
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   bool _isLocaleReady = false;
-  bool _dismissedPermissionPrompt = false;
   PermissionStatus? _notificationPermissionStatus;
   String? _errorMessage;
   List<NotificationModel> _notifications = const [];
@@ -115,6 +112,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
   void initState() {
     super.initState();
     _preparePage();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _preparePage() async {
@@ -129,7 +132,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (kIsWeb) {
       setState(() {
         _notificationPermissionStatus = PermissionStatus.granted;
-        _dismissedPermissionPrompt = true;
       });
       return;
     }
@@ -137,7 +139,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (!mounted) return;
     setState(() {
       _notificationPermissionStatus = status;
-      if (status.isGranted) _dismissedPermissionPrompt = false;
     });
   }
 
@@ -167,6 +168,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> _refreshPage() async {
     await _loadNotificationPermissionStatus();
     await _loadNotifications();
+  }
+
+  void _searchNotifications(String value) {
+    _loadNotifications(search: value.trim().isEmpty ? null : value.trim());
   }
 
   Future<void> _deleteNotification(int index) async {
@@ -217,19 +222,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     } catch (_) {}
   }
 
-  bool get _shouldShowPermissionPrompt {
-    if (_dismissedPermissionPrompt) return false;
-    final status = _notificationPermissionStatus;
-    return status == null || !status.isGranted;
-  }
-
   Future<void> _requestNotificationPermission() async {
     if (kIsWeb) return;
     final status = await Permission.notification.request();
     if (!mounted) return;
     setState(() {
       _notificationPermissionStatus = status;
-      _dismissedPermissionPrompt = status.isGranted;
     });
     final messenger = ScaffoldMessenger.of(context);
     if (status.isGranted) {
@@ -248,9 +246,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     messenger.showSnackBar(
         const SnackBar(content: Text('Izin notifikasi belum diberikan')));
   }
-
-  void _dismissPermissionPrompt() =>
-      setState(() => _dismissedPermissionPrompt = true);
 
   IconData _iconForType(String type) {
     switch (type) {
@@ -417,7 +412,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         children: [
           BragaPageHeader(
             title: 'Notifikasi',
-            subtitle: 'Tetap update dengan informasi terbaru',
+            subtitle: 'Pembaruan terbaru terkait akun dan aktivitas Anda',
             actions: [
               _buildArchiveIcon(isWide: false),
               const SizedBox(width: 12),
@@ -443,6 +438,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
+        _buildSearchField(),
+        const SizedBox(height: 12),
         // Content
         if (_isLoading)
           const _LoadingCard()
@@ -463,6 +460,35 @@ class _NotificationsPageState extends State<NotificationsPage> {
         else
           _buildGroupedList(),
       ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      onSubmitted: _searchNotifications,
+      decoration: InputDecoration(
+        hintText: 'Cari notifikasi...',
+        prefixIcon: const Icon(Icons.search_rounded, color: _kBrown),
+        suffixIcon: IconButton(
+          onPressed: () {
+            _searchController.clear();
+            _searchNotifications('');
+          },
+          icon: const Icon(Icons.close_rounded),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+      ),
     );
   }
 
@@ -738,7 +764,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         children: [
           BragaPageHeader(
             title: 'Notifikasi',
-            subtitle: 'Tetap update dengan informasi terbaru',
+            subtitle: 'Pembaruan terbaru terkait akun dan aktivitas Anda',
             actions: [
               _buildArchiveIcon(isWide: false),
               const SizedBox(width: 12),
@@ -766,6 +792,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildSearchField(),
+          const SizedBox(height: 16),
           // Content
           if (_isLoading)
             const _LoadingCard()
@@ -1015,7 +1043,7 @@ class _NotificationAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: Image.network(url,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 Icon(icon, color: iconColor, size: 22)),
       );
     }

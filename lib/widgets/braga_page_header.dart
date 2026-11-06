@@ -81,20 +81,6 @@ class BragaPageHeader extends StatelessWidget {
                 ),
               ),
             ),
-            // Decorative icon on the right (building silhouette style)
-            if (decorativeIcon != null)
-              Positioned(
-                right: 16,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: Icon(
-                    decorativeIcon,
-                    size: 54,
-                    color: Colors.white.withOpacity(0.08),
-                  ),
-                ),
-              ),
             // Main content
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
@@ -134,7 +120,10 @@ class BragaPageHeader extends StatelessWidget {
                     ),
                   ),
                   // Optional action buttons
-                  if (actions != null) ...actions!,
+                  if (actions != null) ...[
+                    const SizedBox(width: 8),
+                    ...actions!,
+                  ],
                 ],
               ),
             ),
@@ -156,7 +145,8 @@ class _BackButton extends StatelessWidget {
       color: Colors.white.withOpacity(0.13),
       borderRadius: BorderRadius.circular(11),
       child: InkWell(
-        onTap: onBack ??
+        onTap:
+            onBack ??
             () {
               if (Navigator.canPop(context)) {
                 Navigator.pop(context);

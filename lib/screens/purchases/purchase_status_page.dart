@@ -205,73 +205,6 @@ class _PurchaseStatusPageState extends State<PurchaseStatusPage> {
     );
   }
 
-  Widget _buildPageIntro() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF5C1E04), Color(0xFF8F4E1E)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF5C1E04).withOpacity(0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.16),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
-            ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Transaksi Anda',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFDDE4FF),
-                    fontFamily: 'TomatoGrotesk',
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Lihat status, unggah bukti, dan buka detail transaksi dari sini.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    height: 1.35,
-                    fontFamily: 'TomatoGrotesk',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _StatusHeroCard extends StatelessWidget {
@@ -896,7 +829,7 @@ class _PropertyThumb extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _FallbackThumb(size: size),
+        errorBuilder: (_, _, _) => _FallbackThumb(size: size),
       ),
     );
   }

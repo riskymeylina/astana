@@ -49,7 +49,10 @@ This repo uses a **single-branch multi-agent workflow**.
 - Run dependencies for the mobile app
 - Launch the Flutter app from the repo root
 - For Android emulator use `--dart-define=PUIMEY_API_BASE_URL=http://10.0.2.2:3000`
-- For a physical phone on the same Wi-Fi, use `--dart-define=PUIMEY_API_BASE_URL=http://<IP-LAN-PC>:3000`
+- For local physical-phone debugging, use `--dart-define=PUIMEY_API_BASE_URL=http://<IP-LAN-PC>:3000`
+- For physical phones on any network, deploy the API behind a stable HTTPS domain and run:
+  `flutter run --dart-define=PUIMEY_API_BASE_URL=https://api.example.com`
+- The build-time API URL takes priority over localhost, saved URLs, and LAN discovery, so phones do not depend on the developer PC's IP address.
 - The Android debug/profile builds allow cleartext HTTP so the app can reach the local API host
 
 ### Backend API

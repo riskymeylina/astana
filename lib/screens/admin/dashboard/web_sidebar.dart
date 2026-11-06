@@ -87,7 +87,6 @@ class WebSidebar extends StatelessWidget {
                   
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                    leading: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
                     title: const Text('Logout', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
                     onTap: onLogout,
                     hoverColor: Colors.white.withOpacity(0.05),
@@ -108,7 +107,14 @@ class WebSidebar extends StatelessWidget {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.white24,
-                  child: const Icon(Icons.person, color: Colors.white, size: 20),
+                  child: Text(
+                    userName.trim().isEmpty ? 'U' : userName.trim()[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -140,45 +146,27 @@ class WebSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(int index, IconData icon, String title, {int? badgeCount}) {
+  Widget _buildMenuItem(int index, String title) {
     final isSelected = selectedIndex == index;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Material(
         color: isSelected ? const Color(0xFFFFF6EC) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        leading: Icon(
-          icon,
-          color: isSelected ? const Color(0xFF8B3E0F) : Colors.white70,
-          size: 20,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFF8B3E0F) : Colors.white70,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF8B3E0F) : Colors.white70,
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            ),
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onTap: () => onMenuTap(index),
+          hoverColor: isSelected ? Colors.transparent : Colors.white.withOpacity(0.05),
         ),
-        trailing: badgeCount != null
-            ? Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFCC7A2E),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  badgeCount.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              )
-            : null,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onTap: () => onMenuTap(index),
-        hoverColor: isSelected ? Colors.transparent : Colors.white.withOpacity(0.05),
       ),
     );
   }
@@ -187,20 +175,20 @@ class WebSidebar extends StatelessWidget {
   List<Widget> _buildMenuItems() {
     if (userRole.toLowerCase().contains('staf')) {
       return [
-        _buildMenuItem(0, Icons.home_rounded, 'Dashboard'),
-        _buildMenuItem(1, Icons.schedule_rounded, 'Jadwal Survei'),
-        _buildMenuItem(2, Icons.chat_rounded, 'Konsultasi'),
-        _buildMenuItem(3, Icons.analytics_rounded, 'Ketersediaan Properti'),
-        _buildMenuItem(4, Icons.receipt_long_rounded, 'Rekap Data'),
+        _buildMenuItem(0, 'Dashboard'),
+        _buildMenuItem(1, 'Jadwal Survei'),
+        _buildMenuItem(2, 'Konsultasi'),
+        _buildMenuItem(3, 'Ketersediaan Properti'),
+        _buildMenuItem(4, 'Rekap Data'),
       ];
     }
     // Admin/Marketing default menu
     return [
-      _buildMenuItem(0, Icons.home_rounded, 'Dashboard'),
-      _buildMenuItem(1, Icons.domain_rounded, 'Kelola Properti'),
-      _buildMenuItem(2, Icons.trending_up_rounded, 'Laporan Penjualan'),
-      _buildMenuItem(3, Icons.people_alt_rounded, 'Kelola Pembeli'),
-      _buildMenuItem(4, Icons.badge_rounded, 'Kelola Staf'),
+      _buildMenuItem(0, 'Dashboard'),
+      _buildMenuItem(1, 'Kelola Properti'),
+      _buildMenuItem(2, 'Laporan Penjualan'),
+      _buildMenuItem(3, 'Data Pembeli'),
+      _buildMenuItem(4, 'Kelola Staf'),
     ];
   }
 }

@@ -20,28 +20,27 @@ class ManageConsultationsPage extends StatefulWidget {
       _ManageConsultationsPageState();
 }
 
-class _ManageConsultationsPageState
-    extends State<ManageConsultationsPage> {
-  final ConsultationService     _consultationService = ConsultationService();
-  final TextEditingController   _searchController    = TextEditingController();
+class _ManageConsultationsPageState extends State<ManageConsultationsPage> {
+  final ConsultationService _consultationService = ConsultationService();
+  final TextEditingController _searchController = TextEditingController();
 
-  bool   _isLoading      = true;
-  bool   _isLocaleReady  = false;
-  bool   _isSubmitting   = false;
-  String _selectedFilter = 'all';
-  String _searchQuery    = '';
+  bool _isLoading = true;
+  bool _isLocaleReady = false;
+  bool _isSubmitting = false;
+  String _selectedTab = 'all';
+  String _searchQuery = '';
   String? _errorMessage;
   List<ConsultationRequestModel> _consultations = const [];
 
   // ── colours ───────────────────────────────────────────────────────────────
-  static const _brown      = Color(0xFF632B0A);
-  static const _brownMid   = Color(0xFF964B1A);
+  static const _brown = Color(0xFF632B0A);
+  static const _brownMid = Color(0xFF964B1A);
   static const _brownLight = Color(0xFFFFF0E0);
-  static const _textDark   = Color(0xFF2F2318);
-  static const _textMid    = Color(0xFF5A4535);
-  static const _textLight  = Color(0xFF8A7563);
-  static const _border     = Color(0xFFF0E1CF);
-  static const _bg         = Color(0xFFFDFBF9);
+  static const _textDark = Color(0xFF2F2318);
+  static const _textMid = Color(0xFF5A4535);
+  static const _textLight = Color(0xFF8A7563);
+  static const _border = Color(0xFFF0E1CF);
+  static const _bg = Color(0xFFFDFBF9);
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
   @override
@@ -62,8 +61,9 @@ class _ManageConsultationsPageState
 
     _searchController.addListener(() {
       if (!mounted) return;
-      setState(() =>
-          _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
 
     setState(() => _isLocaleReady = true);
@@ -72,39 +72,33 @@ class _ManageConsultationsPageState
 
   Future<void> _loadConsultations() async {
     setState(() {
-      _isLoading    = true;
+      _isLoading = true;
       _errorMessage = null;
     });
 
-    final response =
-        await _consultationService.getStaffConsultationRequests();
+    final response = await _consultationService.getStaffConsultationRequests();
     if (!mounted) return;
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       setState(() {
-        _consultations =
-            _consultationService.parseConsultations(response.body);
+        _consultations = _consultationService.parseConsultations(response.body);
         _isLoading = false;
       });
       return;
     }
 
     setState(() {
-      _errorMessage =
-          _consultationService.parseMessage(response.body);
+      _errorMessage = _consultationService.parseMessage(response.body);
       _isLoading = false;
     });
   }
 
-  Future<void> _markResolved(
-      ConsultationRequestModel consultation) async {
+  Future<void> _markResolved(ConsultationRequestModel consultation) async {
     setState(() => _isSubmitting = true);
-    final response =
-        await _consultationService.updateConsultationStatus(
+    final response = await _consultationService.updateConsultationStatus(
       consultationId: consultation.id,
-      status:         'resolved',
-      staffNotes:
-          consultation.staffNotes ?? 'Konsultasi diselesaikan staf.',
+      status: 'resolved',
+      staffNotes: consultation.staffNotes ?? 'Konsultasi diselesaikan staf.',
     );
     if (!mounted) return;
     setState(() => _isSubmitting = false);
@@ -112,10 +106,10 @@ class _ManageConsultationsPageState
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-            _consultationService.parseMessage(response.body)),
-        backgroundColor:
-            response.statusCode < 300 ? _brown : const Color(0xFFC74C4C),
+        content: Text(_consultationService.parseMessage(response.body)),
+        backgroundColor: response.statusCode < 300
+            ? _brown
+            : const Color(0xFFC74C4C),
       ),
     );
 
@@ -127,31 +121,31 @@ class _ManageConsultationsPageState
   // ── safe navigation to the shared detail page ─────────────────────────────
   void _openDetail(int id) {
     if (!mounted) return;
-    Navigator.pushNamed(
-      context,
-      '/consultation-detail',
-      arguments: id,
-    ).then((_) {
+    Navigator.pushNamed(context, '/consultation-detail', arguments: id).then((
+      _,
+    ) {
       if (mounted) _loadConsultations();
     });
   }
 
-  // ── filter + search ───────────────────────────────────────────────────────
+  // ── status tabs + search ──────────────────────────────────────────────────
   List<ConsultationRequestModel> get _visible {
     final filtered = _consultations.where((c) {
-      final matchesFilter = switch (_selectedFilter) {
-        'unread'   => c.unreadCount > 0,
-        'read'     => c.unreadCount == 0,
-        'active'   => c.status != 'resolved' && c.status != 'rejected',
+      final matchesTab = switch (_selectedTab) {
+        'unread' => c.unreadCount > 0,
+        'read' => c.unreadCount == 0,
         'resolved' => c.status == 'resolved',
-        _          => true,
+        _ => true,
       };
-      if (!matchesFilter) return false;
+      if (!matchesTab) return false;
       if (_searchQuery.isEmpty) return true;
 
       final searchable = [
         c.buyerName,
+        c.buyerPhone,
+        c.buyerEmail,
         c.propertyTitle ?? '',
+        c.propertyLocation ?? '',
         c.topic,
         c.message,
         c.lastMessage ?? '',
@@ -205,25 +199,24 @@ class _ManageConsultationsPageState
 
   DateTime _sortDate(ConsultationRequestModel c) =>
       DateTime.tryParse(
-            c.lastMessageAt ?? c.updatedAt ?? c.createdAt ?? '',
-          )?.toLocal() ??
+        c.lastMessageAt ?? c.updatedAt ?? c.createdAt ?? '',
+      )?.toLocal() ??
       DateTime.fromMillisecondsSinceEpoch(0);
 
   // ── time helper ───────────────────────────────────────────────────────────
   String _compactTime(String? value) {
     final parsed = DateTime.tryParse(value ?? '')?.toLocal();
     if (parsed == null) return '-';
-    final now   = DateTime.now();
+    final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final date  = DateTime(parsed.year, parsed.month, parsed.day);
-    final diff  = today.difference(date).inDays;
+    final date = DateTime(parsed.year, parsed.month, parsed.day);
+    final diff = today.difference(date).inDays;
     if (diff == 0) return DateFormat('HH:mm', 'id_ID').format(parsed);
     if (diff == 1) return 'Kemarin';
     return DateFormat('dd/MM/yy', 'id_ID').format(parsed);
   }
 
-  int get _unreadCount =>
-      _consultations.where((c) => c.unreadCount > 0).length;
+  int get _unreadCount => _consultations.where((c) => c.unreadCount > 0).length;
 
   // ════════════════════════════════════════════════════════════════════════
   // BUILD
@@ -247,22 +240,22 @@ class _ManageConsultationsPageState
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
-            child: _buildFilterRow(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: _buildStatusTabs(),
           ),
 
           if (_isSubmitting)
             const LinearProgressIndicator(
-              minHeight:       2,
-              color:           _brownMid,
+              minHeight: 2,
+              color: _brownMid,
               backgroundColor: _brownLight,
             ),
 
           Expanded(
             child: RefreshIndicator(
-              color:     _brown,
+              color: _brown,
               onRefresh: _loadConsultations,
-              child:     _buildBody(),
+              child: _buildBody(),
             ),
           ),
 
@@ -291,55 +284,52 @@ class _ManageConsultationsPageState
         controller: _searchController,
         style: const TextStyle(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
-          hintText:  'Cari nama konsumen, topik, atau pesan…',
-          hintStyle: const TextStyle(
-              color: Color(0xFFB0A090), fontSize: 13),
+          hintText: 'Cari nama, properti, topik, atau pesan…',
+          hintStyle: const TextStyle(color: Color(0xFFB0A090), fontSize: 13),
           prefixIcon: const Icon(
-              Icons.search_rounded, color: _textLight, size: 18),
+            Icons.search_rounded,
+            color: _textLight,
+            size: 18,
+          ),
           suffixIcon: _searchQuery.isEmpty
-              ? const Icon(
-                  Icons.tune_rounded, color: _textDark, size: 18)
+              ? null
               : IconButton(
                   onPressed: _searchController.clear,
                   icon: const Icon(
-                      Icons.close_rounded, color: _textLight, size: 18),
+                    Icons.close_rounded,
+                    color: _textLight,
+                    size: 18,
+                  ),
                 ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16, vertical: 14),
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
   }
 
-  // ── Filter Row ────────────────────────────────────────────────────────────
-  Widget _buildFilterRow() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-      child: Row(
+  // ── Status tabs ───────────────────────────────────────────────────────────
+  Widget _buildStatusTabs() {
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 8,
         children: [
-          _chip(value: 'all',  label: 'Semua'),
-          const SizedBox(width: 10),
+          _chip(value: 'all', label: 'Semua'),
           _chip(
-            value:      'unread',
-            label:      'Belum dibaca',
+            value: 'unread',
+            label: 'Belum dibaca',
             badgeCount: _unreadCount > 0 ? _unreadCount : null,
           ),
-          const SizedBox(width: 10),
-          _chip(value: 'read',     label: 'Sudah dibaca'),
-          const SizedBox(width: 10),
+          _chip(value: 'read', label: 'Sudah dibaca'),
           _chip(
-            value:    'active',
-            label:    'Aktif',
-            showDot:  true,
-            dotColor: const Color(0xFF3DAA6E),
-          ),
-          const SizedBox(width: 10),
-          _chip(
-            value:    'resolved',
-            label:    'Selesai',
-            showDot:  true,
+            value: 'resolved',
+            label: 'Selesai',
+            showDot: true,
             dotColor: _textLight,
           ),
         ],
@@ -350,24 +340,22 @@ class _ManageConsultationsPageState
   Widget _chip({
     required String value,
     required String label,
-    int?    badgeCount,
-    bool    showDot  = false,
-    Color?  dotColor,
+    int? badgeCount,
+    bool showDot = false,
+    Color? dotColor,
   }) {
-    final isSelected = _selectedFilter == value;
+    final isSelected = _selectedTab == value;
     return InkWell(
-      onTap: () => setState(() => _selectedFilter = value),
-      borderRadius: BorderRadius.circular(10),
+      onTap: () => setState(() => _selectedTab = value),
+      borderRadius: BorderRadius.circular(100),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
           color: isSelected ? _brown : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(100),
           border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : const Color(0xFFFAF0E6),
+            color: isSelected ? Colors.transparent : const Color(0xFFFAF0E6),
           ),
         ),
         child: Row(
@@ -375,9 +363,12 @@ class _ManageConsultationsPageState
           children: [
             if (showDot && dotColor != null) ...[
               Container(
-                width: 6, height: 6,
+                width: 6,
+                height: 6,
                 decoration: BoxDecoration(
-                    color: dotColor, shape: BoxShape.circle),
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 6),
             ],
@@ -392,10 +383,10 @@ class _ManageConsultationsPageState
             if (badgeCount != null) ...[
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
                   color: Color(0xFFE28A43),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
                   '$badgeCount',
@@ -416,11 +407,11 @@ class _ManageConsultationsPageState
   // ── Bottom Bar ────────────────────────────────────────────────────────────
   Widget _buildBottomBar() {
     final visible = _visible.length;
-    final total   = _consultations.length;
+    final total = _consultations.length;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: const BoxDecoration(
-        color:  _bg,
+        color: _bg,
         border: Border(top: BorderSide(color: _border)),
       ),
       child: Row(
@@ -436,15 +427,14 @@ class _ManageConsultationsPageState
               backgroundColor: _brown,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             ),
-            icon:  const Icon(Icons.refresh_rounded, size: 14),
+            icon: const Icon(Icons.refresh_rounded, size: 14),
             label: const Text(
               'Muat ulang',
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -455,8 +445,7 @@ class _ManageConsultationsPageState
   // ── Body ──────────────────────────────────────────────────────────────────
   Widget _buildBody() {
     if (!_isLocaleReady || _isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: _brownMid));
+      return const Center(child: CircularProgressIndicator(color: _brownMid));
     }
 
     if (_errorMessage != null) {
@@ -465,12 +454,12 @@ class _ManageConsultationsPageState
         padding: const EdgeInsets.all(20),
         children: [
           _InfoCard(
-            icon:        Icons.error_outline_rounded,
-            iconColor:   const Color(0xFFC74C4C),
-            title:       'Gagal memuat chat konsultasi',
-            message:     _errorMessage!,
+            icon: Icons.error_outline_rounded,
+            iconColor: const Color(0xFFC74C4C),
+            title: 'Gagal memuat chat konsultasi',
+            message: _errorMessage!,
             actionLabel: 'Coba lagi',
-            onPressed:   _loadConsultations,
+            onPressed: _loadConsultations,
           ),
         ],
       );
@@ -483,28 +472,28 @@ class _ManageConsultationsPageState
         padding: const EdgeInsets.all(20),
         children: const [
           _InfoCard(
-            icon:      Icons.forum_rounded,
+            icon: Icons.forum_rounded,
             iconColor: _brownMid,
-            title:     'Chat tidak ditemukan',
+            title: 'Chat tidak ditemukan',
             message:
                 'Tidak ada pengajuan konsultasi dari konsumen saat ini. '
-                'Coba ubah filter atau kata kunci pencarian.',
+                'Coba ubah kata kunci pencarian.',
           ),
         ],
       );
     }
 
     return ListView.separated(
-      physics:          const AlwaysScrollableScrollPhysics(),
-      padding:          const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      itemCount:        list.length,
-      separatorBuilder: (_, __) => const SizedBox.shrink(),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      itemCount: list.length,
+      separatorBuilder: (_, _) => const SizedBox.shrink(),
       itemBuilder: (context, index) {
         final c = list[index];
         return _ConsultationTile(
-          consultation:  c,
-          compactTime:   _compactTime,
-          onOpenDetail:  () => _openDetail(c.id),
+          consultation: c,
+          compactTime: _compactTime,
+          onOpenDetail: () => _openDetail(c.id),
           onMarkResolved: () => _markResolved(c),
         );
       },
@@ -545,12 +534,12 @@ class _ConsultationTile extends StatelessWidget {
     final name = consultation.buyerName.trim().isEmpty
         ? 'Konsumen'
         : consultation.buyerName.trim();
-    final topic      = consultation.propertyTitle ?? consultation.topic;
-    final preview    =
-        (consultation.lastMessage ?? consultation.message).trim();
-    final hasUnread  = consultation.unreadCount > 0;
+    final topic = consultation.propertyTitle ?? consultation.topic;
+    final preview = (consultation.lastMessage ?? consultation.message).trim();
+    final hasUnread = consultation.unreadCount > 0;
     final isResolved = consultation.status == 'resolved';
-    final lastTime   = consultation.lastMessageAt ??
+    final lastTime =
+        consultation.lastMessageAt ??
         consultation.updatedAt ??
         consultation.createdAt;
 
@@ -558,27 +547,24 @@ class _ConsultationTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 1),
       child: Container(
         decoration: const BoxDecoration(
-          color:  Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Color(0xFFF5E6D3)),
-          ),
+          color: Colors.white,
+          border: Border(bottom: BorderSide(color: Color(0xFFF5E6D3))),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 4, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // ── Avatar ───────────────────────────────────────────────
               CircleAvatar(
-                radius:          22,
+                radius: 22,
                 backgroundColor: _avatarColor,
                 child: Text(
                   name[0].toUpperCase(),
                   style: const TextStyle(
-                    fontSize:   16,
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
-                    color:      Colors.white,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -593,33 +579,38 @@ class _ConsultationTile extends StatelessWidget {
                     Text(
                       name,
                       style: const TextStyle(
-                        fontSize:   14,
+                        fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        color:      Color(0xFF2F2318),
+                        color: Color(0xFF2F2318),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color:        const Color(0xFFFAF0E6),
+                        color: const Color(0xFFFAF0E6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.assignment_outlined,
-                              size: 11, color: Color(0xFF8A7563)),
+                          const Icon(
+                            Icons.assignment_outlined,
+                            size: 11,
+                            color: Color(0xFF8A7563),
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               topic,
-                              maxLines:  1,
-                              overflow:  TextOverflow.ellipsis,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize:   10,
-                                color:      Color(0xFF8A7563),
+                                fontSize: 10,
+                                color: Color(0xFF8A7563),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -632,7 +623,7 @@ class _ConsultationTile extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.done_all_rounded,
-                          size:  14,
+                          size: 14,
                           color: hasUnread
                               ? const Color(0xFF8A7563)
                               : const Color(0xFF3B82F6),
@@ -640,14 +631,12 @@ class _ConsultationTile extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            preview.isEmpty
-                                ? 'Belum ada pesan.'
-                                : preview,
-                            maxLines:  1,
-                            overflow:  TextOverflow.ellipsis,
+                            preview.isEmpty ? 'Belum ada pesan.' : preview,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
-                              color:    Color(0xFF5A4535),
+                              color: Color(0xFF5A4535),
                             ),
                           ),
                         ),
@@ -658,7 +647,7 @@ class _ConsultationTile extends StatelessWidget {
                       compactTime(lastTime),
                       style: const TextStyle(
                         fontSize: 11,
-                        color:    Color(0xFFB0A090),
+                        color: Color(0xFFB0A090),
                       ),
                     ),
                   ],
@@ -672,7 +661,9 @@ class _ConsultationTile extends StatelessWidget {
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: hasUnread
                           ? const Color(0xFFFFF0E5)
@@ -682,7 +673,7 @@ class _ConsultationTile extends StatelessWidget {
                     child: Text(
                       hasUnread ? 'BELUM DIBACA' : 'SUDAH DIBACA',
                       style: TextStyle(
-                        fontSize:   10,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: hasUnread
                             ? const Color(0xFFE28A43)
@@ -703,12 +694,16 @@ class _ConsultationTile extends StatelessWidget {
                     Text(
                       compactTime(lastTime),
                       style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF8A7563)),
+                        fontSize: 11,
+                        color: Color(0xFF8A7563),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: isResolved
                             ? const Color(0xFFF0F0F0)
@@ -719,7 +714,8 @@ class _ConsultationTile extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 5, height: 5,
+                            width: 5,
+                            height: 5,
                             decoration: BoxDecoration(
                               color: isResolved
                                   ? const Color(0xFF8A7563)
@@ -731,7 +727,7 @@ class _ConsultationTile extends StatelessWidget {
                           Text(
                             isResolved ? 'Selesai' : 'Aktif',
                             style: TextStyle(
-                              fontSize:   11,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: isResolved
                                   ? const Color(0xFF8A7563)
@@ -755,25 +751,26 @@ class _ConsultationTile extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: onOpenDetail,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                            color: Color(0xFF964B1A)),
+                        side: const BorderSide(color: Color(0xFF964B1A)),
                         shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(999)),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 7),
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
                       ),
                       icon: const Icon(
                         Icons.chat_bubble_outline_rounded,
-                        size:  12,
+                        size: 12,
                         color: Color(0xFF964B1A),
                       ),
                       label: const Text(
                         'Lihat Chat',
                         style: TextStyle(
-                          fontSize:   11,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color:      Color(0xFF964B1A),
+                          color: Color(0xFF964B1A),
                         ),
                       ),
                     ),
@@ -781,12 +778,12 @@ class _ConsultationTile extends StatelessWidget {
                     PopupMenuButton<String>(
                       onSelected: (v) {
                         if (v == 'resolve') onMarkResolved();
-                        if (v == 'detail')  onOpenDetail();
+                        if (v == 'detail') onOpenDetail();
                       },
                       icon: const Icon(
                         Icons.more_vert_rounded,
                         color: Color(0xFF8A7563),
-                        size:  18,
+                        size: 18,
                       ),
                       itemBuilder: (_) => [
                         if (!isResolved)
@@ -795,8 +792,8 @@ class _ConsultationTile extends StatelessWidget {
                             child: Text('Tandai Selesai'),
                           ),
                         const PopupMenuItem(
-                          value:  'detail',
-                          child:  Text('Lihat Detail'),
+                          value: 'detail',
+                          child: Text('Lihat Detail'),
                         ),
                       ],
                     ),
@@ -815,11 +812,11 @@ class _ConsultationTile extends StatelessWidget {
 // INFO CARD (error / empty state)
 // ════════════════════════════════════════════════════════════════════════════
 class _InfoCard extends StatelessWidget {
-  final IconData     icon;
-  final Color        iconColor;
-  final String       title;
-  final String       message;
-  final String?      actionLabel;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String message;
+  final String? actionLabel;
   final VoidCallback? onPressed;
 
   const _InfoCard({
@@ -836,9 +833,9 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color:        Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border:       Border.all(color: const Color(0xFFF0E1CF)),
+        border: Border.all(color: const Color(0xFFF0E1CF)),
       ),
       child: Column(
         children: [
@@ -848,9 +845,9 @@ class _InfoCard extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize:   17,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
-              color:      Color(0xFF2F2318),
+              color: Color(0xFF2F2318),
             ),
           ),
           const SizedBox(height: 8),
@@ -859,8 +856,8 @@ class _InfoCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 13,
-              color:    Color(0xFF8A7563),
-              height:   1.5,
+              color: Color(0xFF8A7563),
+              height: 1.5,
             ),
           ),
           if (actionLabel != null && onPressed != null) ...[
@@ -871,14 +868,16 @@ class _InfoCard extends StatelessWidget {
                 backgroundColor: const Color(0xFF632B0A),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
               child: Text(
                 actionLabel!,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],

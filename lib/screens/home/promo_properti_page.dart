@@ -327,7 +327,7 @@ class _PromoHeroSection extends StatelessWidget {
             child: Image.network(
               _displayImageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: const Color(0xFFF0DCC0),
                 child: const Center(
                   child: Icon(
@@ -605,7 +605,7 @@ class _PromoFacilityRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: facilities.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = facilities[index];
 
@@ -823,7 +823,7 @@ class _PromoGalleryRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: images.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           return ClipRRect(
             borderRadius: BorderRadius.circular(14),
@@ -832,7 +832,7 @@ class _PromoGalleryRow extends StatelessWidget {
               width: 110,
               height: 90,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 width: 110,
                 height: 90,
                 decoration: BoxDecoration(
@@ -953,7 +953,7 @@ class _PromoGalleryCard extends StatelessWidget {
                       Image.network(
                         _displayImageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           color: const Color(0xFFF3DDC2),
                           child: const Center(
                             child: Icon(
@@ -1086,8 +1086,7 @@ class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,
     required this.label,
-    this.isActive = false,
-  });
+  }) : isActive = false;
 
   final IconData icon;
   final String label;

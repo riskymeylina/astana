@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-const Color _kBrown = Color(0xFF8B3E0F);
-const Color _kBrownLight = Color(0xFFFFF3EB);
-
 class LoginSocialButton extends StatelessWidget {
   const LoginSocialButton({
     super.key,
@@ -37,7 +34,7 @@ class LoginSocialButton extends StatelessWidget {
               width: 22,
               height: 22,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
+              errorBuilder: (_, _, _) =>
                   const Icon(Icons.login, size: 20, color: Color(0xFF1A1A1A)),
             ),
             const SizedBox(width: 8),

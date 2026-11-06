@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/property_preferences_model.dart';
 import '../../services/property_preferences_service.dart';
+import '../../services/property_service.dart';
+import 'property_search_page.dart';
 import '../../widgets/braga_page_header.dart';
 
 class PropertyPreferencesPage extends StatefulWidget {
@@ -13,8 +15,6 @@ class PropertyPreferencesPage extends StatefulWidget {
 }
 
 class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
-
-
   static const List<String> _klatenRegionSuggestions = [
     'Klaten',
     'Prambanan',
@@ -43,6 +43,7 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
   ];
 
   final PropertyPreferencesService _service = PropertyPreferencesService();
+  final PropertyService _propertyService = PropertyService();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
@@ -55,7 +56,9 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
     'Keamanan 24 Jam',
   ];
   List<String> _selectedCategories = ['Rumah'];
-  RangeValues _priceRange = const RangeValues(200000000, 800000000);
+  List<String> _availableCategories = const [];
+  List<String> _locationSuggestions = const [];
+  RangeValues _priceRange = const RangeValues(100000000, 2000000000);
 
   @override
   void initState() {
@@ -77,9 +80,13 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
     });
 
     final response = await _service.getMyPropertyPreferences();
+    final propertiesResponse = await _propertyService.getProperties(
+      sortBy: 'latest',
+    );
     if (!mounted) return;
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      _applyPropertyOptions(propertiesResponse);
       final preferences = _service.parsePreferences(response.body);
       _applyPreferences(preferences);
       setState(() {
@@ -94,22 +101,58 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
     });
   }
 
+  void _applyPropertyOptions(ApiResponse response) {
+    if (response.statusCode < 200 || response.statusCode >= 300) return;
+    final properties = _propertyService.parseProperties(response.body);
+    final categories =
+        properties
+            .map((property) => property.category.trim())
+            .where((category) => category.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final locations =
+        properties
+            .map((property) => property.location.trim())
+            .where((location) => location.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    setState(() {
+      _availableCategories = categories;
+      _locationSuggestions = locations;
+      if (_availableCategories.isNotEmpty) {
+        _selectedCategories = _selectedCategories
+            .where(_availableCategories.contains)
+            .toList();
+        if (_selectedCategories.isEmpty) {
+          _selectedCategories = [_availableCategories.first];
+        }
+      }
+    });
+  }
+
   void _applyPreferences(PropertyPreferencesModel preferences) {
     _locationController.text = preferences.preferredLocation;
     _notesController.text = preferences.notes;
 
     if (preferences.preferredCategories.isNotEmpty) {
       _selectedCategories = List.from(preferences.preferredCategories);
+      if (_availableCategories.isEmpty) {
+        _availableCategories = List.from(preferences.preferredCategories);
+      }
     } else {
-      _selectedCategories = ['Rumah'];
+      _selectedCategories = _availableCategories.isNotEmpty
+          ? [_availableCategories.first]
+          : ['Rumah'];
     }
 
     final priceStart = preferences.minPrice?.toDouble() ?? _priceRange.start;
     final priceEnd = preferences.maxPrice?.toDouble() ?? _priceRange.end;
     setState(() {
       _priceRange = RangeValues(
-        priceStart.clamp(0, 1000000000),
-        priceEnd.clamp(priceStart, 1000000000),
+        priceStart.clamp(100000000, 2000000000),
+        priceEnd.clamp(priceStart, 2000000000),
       );
     });
   }
@@ -156,12 +199,10 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
     }
   }
 
-
-
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -172,7 +213,7 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
         children: [
           const BragaPageHeader(
             title: 'Preferensi Properti',
-            subtitle: 'Atur preferensi pencarian properti Anda.',
+            subtitle: 'Preferensi sesuai minat.',
             decorativeIcon: Icons.tune_rounded,
           ),
           Expanded(child: _buildBody()),
@@ -237,11 +278,9 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              'Rumah',
-              'Ruko',
-              'Rumah Kost',
-              'Villa',
-              'Tanah',
+              ...(_availableCategories.isEmpty
+                  ? ['Belum ada kategori']
+                  : _availableCategories),
             ].map(_buildCategoryChip).toList(),
           ),
         ),
@@ -281,8 +320,12 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildPriceLabel('Rp ${(_priceRange.start / 1000000).round()} jt'),
-                  _buildPriceLabel('Rp ${(_priceRange.end / 1000000).round()} jt'),
+                  _buildPriceLabel(
+                    'Rp ${(_priceRange.start / 1000000).round()} jt',
+                  ),
+                  _buildPriceLabel(
+                    'Rp ${(_priceRange.end / 1000000).round()} jt',
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -349,6 +392,22 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
         ),
         const SizedBox(height: 18),
         SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _openPreferenceSearch,
+            icon: const Icon(Icons.search_rounded),
+            label: const Text('Cari Properti Sesuai Preferensi'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF8E4E16),
+              side: const BorderSide(color: Color(0xFF8E4E16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
           height: 52,
           child: FilledButton(
             onPressed: _isSaving ? null : _savePreferences,
@@ -384,12 +443,16 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
         if (query.isEmpty) {
-          return _klatenRegionSuggestions.take(8);
+          return (_locationSuggestions.isEmpty
+                  ? _klatenRegionSuggestions
+                  : _locationSuggestions)
+              .take(8);
         }
 
-        return _klatenRegionSuggestions.where(
-          (city) => city.toLowerCase().contains(query),
-        );
+        final suggestions = _locationSuggestions.isEmpty
+            ? _klatenRegionSuggestions
+            : _locationSuggestions;
+        return suggestions.where((city) => city.toLowerCase().contains(query));
       },
       onSelected: (selection) {
         setState(() {
@@ -398,27 +461,29 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
       },
       fieldViewBuilder:
           (context, textEditingController, focusNode, onFieldSubmitted) {
-        if (textEditingController.text != _locationController.text) {
-          textEditingController.value = TextEditingValue(
-            text: _locationController.text,
-            selection: TextSelection.collapsed(
-              offset: _locationController.text.length,
-            ),
-          );
-        }
+            if (textEditingController.text != _locationController.text) {
+              textEditingController.value = TextEditingValue(
+                text: _locationController.text,
+                selection: TextSelection.collapsed(
+                  offset: _locationController.text.length,
+                ),
+              );
+            }
 
-        textEditingController.addListener(() {
-          _locationController.value = textEditingController.value;
-        });
+            textEditingController.addListener(() {
+              _locationController.value = textEditingController.value;
+            });
 
-        return TextField(
-          controller: textEditingController,
-          focusNode: focusNode,
-          textInputAction: TextInputAction.done,
-          decoration: _buildInputDecoration('Kota / kawasan yang diinginkan'),
-          onSubmitted: (_) => onFieldSubmitted(),
-        );
-      },
+            return TextField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.done,
+              decoration: _buildInputDecoration(
+                'Kota / kawasan yang diinginkan',
+              ),
+              onSubmitted: (_) => onFieldSubmitted(),
+            );
+          },
       optionsViewBuilder: (context, onSelected, options) {
         return Align(
           alignment: Alignment.topLeft,
@@ -448,6 +513,9 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
   }
 
   Widget _buildCategoryChip(String label) {
+    if (label == 'Belum ada kategori') {
+      return const Chip(label: Text('Belum ada kategori tersedia'));
+    }
     final selected = _selectedCategories.contains(label);
     return FilterChip(
       selected: selected,
@@ -473,6 +541,26 @@ class _PropertyPreferencesPageState extends State<PropertyPreferencesPage> {
       ),
       side: const BorderSide(color: Color(0xFFE7CCAE)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    );
+  }
+
+  void _openPreferenceSearch() {
+    final location = _locationController.text.trim();
+    if (location.isEmpty || _selectedCategories.isEmpty) {
+      _showMessage('Lengkapi lokasi dan kategori preferensi terlebih dahulu.');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PropertySearchPage(
+          initialQuery: location,
+          initialCategory: _selectedCategories.join(','),
+          minPrice: _priceRange.start.round(),
+          maxPrice: _priceRange.end.round(),
+          title: 'Properti Sesuai Preferensi',
+        ),
+      ),
     );
   }
 
@@ -581,5 +669,3 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
-
-

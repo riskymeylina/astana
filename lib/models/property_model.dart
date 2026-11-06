@@ -1,3 +1,5 @@
+import '../services/app_config.dart';
+
 class PropertyModel {
   final int id;
   final String title;
@@ -137,9 +139,18 @@ class PropertyGalleryItem {
   });
 
   factory PropertyGalleryItem.fromJson(Map<String, dynamic> json) {
+    String rawUrl = (json['imageUrl'] ?? '').toString().trim();
+    if (rawUrl.startsWith('/uploads')) {
+      rawUrl = '${AppConfig.serverBaseUrl}$rawUrl';
+    }
+    // Encode spaces in URL if any
+    if (rawUrl.contains(' ')) {
+      rawUrl = Uri.encodeFull(rawUrl);
+    }
+
     return PropertyGalleryItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      imageUrl: (json['imageUrl'] ?? '').toString(),
+      imageUrl: rawUrl,
       title: (json['title'] ?? '').toString(),
       subtitle: (json['subtitle'] ?? '').toString(),
       details: _parseDetails(json['details']),

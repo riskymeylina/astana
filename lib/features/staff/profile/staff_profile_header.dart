@@ -226,7 +226,7 @@ class _DotGrid extends StatelessWidget {
           mainAxisSpacing: 8,
         ),
         itemCount: 25,
-        itemBuilder: (_, __) => Container(
+        itemBuilder: (_, _) => Container(
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.25),
             shape: BoxShape.circle,

@@ -112,13 +112,63 @@ class AuthService {
     }
   }
 
+  Future<ApiResponse> socialLoginUser({
+    required String provider,
+    required String email,
+    required String name,
+    String? providerId,
+    String? photoUrl,
+  }) async {
+    debugPrint('[AUTH_DEBUG] socialLoginUser dipanggil provider: $provider, email: $email');
+    if (email.trim().isEmpty || name.trim().isEmpty) {
+      return ApiResponse(
+        statusCode: 400,
+        body: jsonEncode({'message': 'Data akun sosial tidak lengkap'}),
+      );
+    }
+
+    try {
+      final url = '$_apiBaseUrl/social-login';
+      debugPrint('[AUTH_DEBUG] Mengirim POST request ke $url');
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'provider': provider,
+              'email': email.trim(),
+              'name': name.trim(),
+              if (providerId != null) 'providerId': providerId,
+              if (photoUrl != null) 'photoUrl': photoUrl,
+            }),
+          )
+          .timeout(_requestTimeout);
+
+      debugPrint('[AUTH_DEBUG] Response POST $url: Status ${response.statusCode}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = _decodeJsonObject(response.body);
+        await saveSession(data, sessionState: SessionState.verified);
+      }
+
+      return ApiResponse(statusCode: response.statusCode, body: response.body);
+    } catch (e, stack) {
+      debugPrint('[AUTH_DEBUG] Exception pada socialLoginUser: $e\n$stack');
+      return ApiResponse(
+        statusCode: 500,
+        body: jsonEncode({'message': 'Tidak dapat terhubung ke backend'}),
+      );
+    }
+  }
+
   Future<ApiResponse> registerUser(
     String name,
     String email,
     String phone,
-    String password,
-  ) async {
-    debugPrint('[AUTH_DEBUG] registerUser dipanggil untuk: $email');
+    String password, {
+    String role = 'pembeli',
+  }) async {
+    debugPrint('[AUTH_DEBUG] registerUser dipanggil untuk: $email (role: $role)');
     if (name.trim().isEmpty ||
         email.trim().isEmpty ||
         phone.trim().isEmpty ||
@@ -142,6 +192,7 @@ class AuthService {
               'email': email.trim(),
               'phone': phone.trim(),
               'password': password,
+              'role': role,
             }),
           )
           .timeout(_requestTimeout);
@@ -338,7 +389,7 @@ class AuthService {
       }
 
       debugPrint('[AUTH_DEBUG] Memulai verifikasi sesi dari storage');
-      return verifySession();
+      return await verifySession();
     } catch (e, stack) {
       debugPrint('[AUTH_DEBUG] Exception saat restoreSession: $e\n$stack');
       await clearSession();

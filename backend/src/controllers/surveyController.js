@@ -38,6 +38,28 @@ function validateDate(value, fieldLabel) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
     throw createError(`${fieldLabel} tidak valid`, 400);
   }
+
+  const [year, month, day] = normalized.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    throw createError(`${fieldLabel} tidak valid`, 400);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date < today) {
+    throw createError(`${fieldLabel} tidak boleh sebelum hari ini`, 400);
+  }
+
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  if (date > lastDayOfMonth) {
+    throw createError(`${fieldLabel} tidak boleh melewati bulan berjalan`, 400);
+  }
+
   return normalized;
 }
 
@@ -48,6 +70,11 @@ function validateOptionalTime(value, fieldLabel) {
   }
 
   if (!/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
+    throw createError(`${fieldLabel} tidak valid`, 400);
+  }
+
+  const [hours, minutes, seconds = '00'] = normalized.split(':').map(Number);
+  if (hours > 23 || minutes > 59 || seconds > 59) {
     throw createError(`${fieldLabel} tidak valid`, 400);
   }
 
@@ -98,6 +125,9 @@ function validateStatusUpdateBody(body) {
   if (!rejectionReason) {
     throw createError('Alasan penolakan wajib diisi', 400);
   }
+  if (rejectionReason.length > 500) {
+    throw createError('Alasan penolakan maksimal 500 karakter', 400);
+  }
 
   return {
     status,
@@ -113,6 +143,8 @@ function buildSurveyPayload(item) {
     id_survey: item.id_survey,
     buyerUserId: item.buyer_user_id,
     buyerName: item.buyer_name,
+    buyerPhone: item.buyer_phone,
+    buyerEmail: item.buyer_email,
     propertyId: item.property_id,
     propertyTitle: item.property_title,
     propertyLocation: item.property_location,
@@ -126,6 +158,7 @@ function buildSurveyPayload(item) {
     rejectionReason: item.rejection_reason,
     processedByUserId: item.processed_by_user_id,
     processedByName: item.processed_by_name,
+    processedByPhone: item.processed_by_phone,
     processedAt: item.processed_at,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
@@ -207,11 +240,11 @@ async function updateSurveyRequestStatus(req, res, next) {
     // State transition validations
     if (payload.status === 'approved' || payload.status === 'rejected') {
       if (survey.status !== 'pending') {
-        throw createError('Hanya permintaan survei dengan status pending yang dapat disetujui atau ditolak', 400);
+        throw createError('Hanya permintaan survei yang masih menunggu yang dapat disetujui atau ditolak', 400);
       }
     } else if (payload.status === 'completed') {
       if (survey.status !== 'approved') {
-        throw createError('Hanya permintaan survei dengan status approved yang dapat diselesaikan', 400);
+        throw createError('Hanya permintaan survei yang sudah disetujui yang dapat diselesaikan', 400);
       }
     }
 

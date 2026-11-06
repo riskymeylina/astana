@@ -55,30 +55,6 @@ class _JelajahPageState extends State<JelajahPage> {
     Navigator.pushNamed(context, '/property-detail', arguments: id);
   }
 
-  void _openPropertySearch({
-    String? query,
-    String? brand,
-    int? minPrice,
-    int? maxPrice,
-    String? status,
-    String? sortBy,
-    String title = 'Cari Properti',
-  }) {
-    Navigator.pushNamed(
-      context,
-      '/property-search',
-      arguments: {
-        if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
-        if (brand != null && brand.trim().isNotEmpty) 'brand': brand.trim(),
-        if (minPrice != null) 'minPrice': minPrice,
-        if (maxPrice != null) 'maxPrice': maxPrice,
-        if (status != null) 'status': status,
-        if (sortBy != null) 'sortBy': sortBy,
-        'title': title,
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,52 +64,60 @@ class _JelajahPageState extends State<JelajahPage> {
           children: [
             // ── Header ──────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Jelajah',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Cari rumah, kos, dan ruko yang paling cocok untukmu.',
-                          style: TextStyle(
-                            color: Color(0xFF6B5A4B),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 14, 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5C1E04), Color(0xFF8F4E1E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF3E0CC),
-                      foregroundColor: const Color(0xFF6F3F1A),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5C1E04).withOpacity(0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    icon: const Icon(Icons.tune_rounded, size: 18),
-                    label: const Text(
-                      'Filter',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jelajah',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              height: 1.15,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Temukan properti yang sesuai dengan kebutuhan Anda.',
+                            style: TextStyle(
+                              color: Color(0xD9FFFFFF),
+                              fontSize: 11.5,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Icon(
+                      Icons.explore_rounded,
+                      size: 48,
+                      color: Colors.white.withOpacity(0.08),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -148,9 +132,10 @@ class _JelajahPageState extends State<JelajahPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2))
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: const Row(
@@ -161,7 +146,9 @@ class _JelajahPageState extends State<JelajahPage> {
                       child: Text(
                         'Cari lokasi, nama properti, atau kata kunci...',
                         style: TextStyle(
-                            color: Color(0xFF9E9E9E), fontSize: 13.5),
+                          color: Color(0xFF9E9E9E),
+                          fontSize: 13.5,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -180,7 +167,9 @@ class _JelajahPageState extends State<JelajahPage> {
                   children: List.generate(_categories.length, (i) {
                     final isSelected = i == _selectedCategory;
                     return Padding(
-                      padding: EdgeInsets.only(right: i < _categories.length - 1 ? 8 : 0),
+                      padding: EdgeInsets.only(
+                        right: i < _categories.length - 1 ? 8 : 0,
+                      ),
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedCategory = i),
                         child: _CategoryChip(
@@ -202,111 +191,111 @@ class _JelajahPageState extends State<JelajahPage> {
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF8E4E16)))
+                        color: Color(0xFF8E4E16),
+                      ),
+                    )
                   : _error != null
-                      ? RefreshIndicator(
-                          onRefresh: _load,
-                          color: const Color(0xFF8E4E16),
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(18.0),
-                                child: Text(_error!,
-                                    style:
-                                        const TextStyle(color: Colors.red)),
-                              )
-                            ],
+                  ? RefreshIndicator(
+                      onRefresh: _load,
+                      color: const Color(0xFF8E4E16),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(18.0),
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
                           ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          color: const Color(0xFF8E4E16),
-                          child: CustomScrollView(
-                            slivers: [
-                              // ── Promo Banner ──────────────────
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      18, 0, 18, 20),
-                                  child: _PromoBanner(),
-                                ),
-                              ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      color: const Color(0xFF8E4E16),
+                      child: CustomScrollView(
+                        slivers: [
+                          // ── Promo Banner ──────────────────
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+                              child: _PromoBanner(),
+                            ),
+                          ),
 
-
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      18, 0, 18, 14),
-                                  child: Row(
-                                    children: [
-                                      const Text(
-                                        'Properti Unggulan',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w900,
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Properti Unggulan',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF1A1A1A),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFE9DCCF),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: const [
+                                        Text(
+                                          'Terbaru',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF1A1A1A),
+                                          ),
+                                        ),
+                                        SizedBox(width: 4),
+                                        Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 18,
                                           color: Color(0xFF1A1A1A),
                                         ),
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                              color:
-                                                  const Color(0xFFE9DCCF)),
-                                        ),
-                                        child: Row(
-                                          children: const [
-                                            Text(
-                                              'Terbaru',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF1A1A1A),
-                                              ),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Icon(
-                                                Icons.keyboard_arrow_down_rounded,
-                                                size: 18,
-                                                color: Color(0xFF1A1A1A)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-
-                              // ── Property cards ────────────────
-                              SliverPadding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    18, 0, 18, 120),
-                                sliver: SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, i) {
-                                      final p = _props[i];
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                            bottom: 14),
-                                        child: _PropertyListCard(
-                                          property: p,
-                                          onOpen: () => _openDetail(p.id),
-                                        ),
-                                      );
-                                    },
-                                    childCount: _props.length,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+
+                          // ── Property cards ────────────────
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(18, 0, 18, 120),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                i,
+                              ) {
+                                final p = _props[i];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: _PropertyListCard(
+                                    property: p,
+                                    onOpen: () => _openDetail(p.id),
+                                  ),
+                                );
+                              }, childCount: _props.length),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -447,8 +436,11 @@ class _PromoBanner extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: const [
-                    Icon(Icons.access_time_rounded,
-                        size: 13, color: Color(0xFFE07B1A)),
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 13,
+                      color: Color(0xFFE07B1A),
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Berakhir dalam 12 hari',
@@ -470,11 +462,7 @@ class _PromoBanner extends StatelessWidget {
             top: 0,
             bottom: 0,
             child: Center(
-              child: Container(
-                width: 90,
-                height: 90,
-                child: _GiftBoxWidget(),
-              ),
+              child: Container(width: 90, height: 90, child: _GiftBoxWidget()),
             ),
           ),
         ],
@@ -487,9 +475,7 @@ class _PromoBanner extends StatelessWidget {
 class _GiftBoxWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _GiftBoxPainter(),
-    );
+    return CustomPaint(painter: _GiftBoxPainter());
   }
 }
 
@@ -507,18 +493,24 @@ class _GiftBoxPainter extends CustomPainter {
     final shinePaint = Paint()..color = Colors.white.withOpacity(0.3);
 
     // Lid
-    final lidRect =
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.05, h * 0.3, w * 0.9, h * 0.14), const Radius.circular(6));
+    final lidRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.05, h * 0.3, w * 0.9, h * 0.14),
+      const Radius.circular(6),
+    );
     canvas.drawRRect(lidRect, lidPaint);
 
     // Box body
-    final bodyRect =
-        RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.1, h * 0.43, w * 0.8, h * 0.5), const Radius.circular(6));
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.1, h * 0.43, w * 0.8, h * 0.5),
+      const Radius.circular(6),
+    );
     canvas.drawRRect(bodyRect, bodyPaint);
 
     // Vertical ribbon on body
     canvas.drawRect(
-        Rect.fromLTWH(w * 0.44, h * 0.43, w * 0.12, h * 0.5), ribbonPaint);
+      Rect.fromLTWH(w * 0.44, h * 0.43, w * 0.12, h * 0.5),
+      ribbonPaint,
+    );
 
     // Horizontal ribbon on lid
     canvas.drawRRect(lidRect, ribbonPaint..color = const Color(0xFFF5A855));
@@ -528,22 +520,37 @@ class _GiftBoxPainter extends CustomPainter {
     bowPath.moveTo(w * 0.5, h * 0.28);
     bowPath.cubicTo(w * 0.2, h * 0.05, w * 0.1, h * 0.3, w * 0.38, h * 0.3);
     canvas.drawPath(
-        bowPath, bowPaint..style = PaintingStyle.stroke..strokeWidth = 7..strokeCap = StrokeCap.round);
+      bowPath,
+      bowPaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..strokeCap = StrokeCap.round,
+    );
 
     // Bow right loop
     final bowPath2 = Path();
     bowPath2.moveTo(w * 0.5, h * 0.28);
     bowPath2.cubicTo(w * 0.8, h * 0.05, w * 0.9, h * 0.3, w * 0.62, h * 0.3);
     canvas.drawPath(
-        bowPath2, bowPaint..style = PaintingStyle.stroke..strokeWidth = 7..strokeCap = StrokeCap.round);
+      bowPath2,
+      bowPaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..strokeCap = StrokeCap.round,
+    );
 
     // Center knot
-    canvas.drawCircle(Offset(w * 0.5, h * 0.29), w * 0.06,
-        Paint()..color = const Color(0xFFE8873A));
+    canvas.drawCircle(
+      Offset(w * 0.5, h * 0.29),
+      w * 0.06,
+      Paint()..color = const Color(0xFFE8873A),
+    );
 
     // Shine on body
     canvas.drawOval(
-        Rect.fromLTWH(w * 0.15, h * 0.48, w * 0.2, h * 0.12), shinePaint);
+      Rect.fromLTWH(w * 0.15, h * 0.48, w * 0.2, h * 0.12),
+      shinePaint,
+    );
   }
 
   @override
@@ -564,8 +571,6 @@ class _PropertyListCard extends StatelessWidget {
     if (title.contains('kos')) return 'Kos';
     return 'Rumah';
   }
-
-  bool get _isFeatured => property.id % 2 == 1; // sesuaikan logika featured Anda
 
   /// Bangun daftar spesifikasi dari PropertyModel.
   List<String> _buildSpecs() {
@@ -588,7 +593,7 @@ class _PropertyListCard extends StatelessWidget {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 14,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -606,11 +611,12 @@ class _PropertyListCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Image.network(
-                    property.gallery.isNotEmpty ? property.gallery.first.imageUrl : '',
+                    property.gallery.isNotEmpty
+                        ? property.gallery.first.imageUrl
+                        : '',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: const Color(0xFFF0DCC0),
-                    ),
+                    errorBuilder: (_, _, _) =>
+                        Container(color: const Color(0xFFF0DCC0)),
                   ),
                   // Category badge
                   Positioned(
@@ -618,7 +624,9 @@ class _PropertyListCard extends StatelessWidget {
                     left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -633,7 +641,6 @@ class _PropertyListCard extends StatelessWidget {
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -647,24 +654,25 @@ class _PropertyListCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Featured badge
-                  if (_isFeatured) ...[
-                    Row(
-                      children: const [
-                        Icon(Icons.star_rounded,
-                            size: 13, color: Color(0xFFF5A623)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Featured',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFF5A623),
-                          ),
+                  Row(
+                    children: const [
+                      Icon(
+                        Icons.star_rounded,
+                        size: 13,
+                        color: Color(0xFFF5A623),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Unggulan',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFF5A623),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
 
                   // Title
                   Text(
@@ -682,8 +690,11 @@ class _PropertyListCard extends StatelessWidget {
                   // Location
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 13, color: Color(0xFF6B5A4B)),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 13,
+                        color: Color(0xFF6B5A4B),
+                      ),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(
@@ -691,7 +702,9 @@ class _PropertyListCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              color: Color(0xFF6B5A4B), fontSize: 12),
+                            color: Color(0xFF6B5A4B),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -722,13 +735,16 @@ class _PropertyListCard extends StatelessWidget {
                       label: const Text(
                         'Lihat Detail',
                         style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF6B5A4B),
                         side: const BorderSide(color: Color(0xFFE9DCCF)),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
@@ -757,12 +773,18 @@ class _SpecsRow extends StatelessWidget {
     return Row(
       children: specs.asMap().entries.expand((entry) {
         final widgets = <Widget>[
-          Text(entry.value,
-              style: const TextStyle(color: Color(0xFF6B5A4B), fontSize: 13)),
+          Text(
+            entry.value,
+            style: const TextStyle(color: Color(0xFF6B5A4B), fontSize: 13),
+          ),
         ];
         if (entry.key < specs.length - 1) {
-          widgets.add(const Text(' • ',
-              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13)));
+          widgets.add(
+            const Text(
+              ' • ',
+              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
+            ),
+          );
         }
         return widgets;
       }).toList(),

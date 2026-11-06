@@ -238,19 +238,13 @@ class ConsultationService {
 
     try {
       final uri = Uri.parse('$_apiBaseUrl/$consultationId/messages/media');
-      final multipart = file.bytes != null
-          ? http.MultipartFile.fromBytes(
-              'media',
-              file.bytes!,
-              filename: file.name,
-              contentType: _mimeTypeOf(file.name),
-            )
-          : await http.MultipartFile.fromPath(
-              'media',
-              file.path!,
-              filename: file.name,
-              contentType: _mimeTypeOf(file.name),
-            );
+      final bytes = await file.readAsBytes();
+      final multipart = http.MultipartFile.fromBytes(
+        'media',
+        bytes,
+        filename: file.name,
+        contentType: _mimeTypeOf(file.name),
+      );
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer $token'
         ..fields['message'] = message ?? ''

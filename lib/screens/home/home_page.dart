@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 
@@ -36,7 +35,6 @@ class _HomePageState extends State<HomePage> {
   final AuthService _authService = AuthService();
   final PropertyService _propertyService = PropertyService();
   final NotificationService _notificationSvc = NotificationService();
-  final ImagePicker _imagePicker = ImagePicker();
   final PageController _promoController = PageController(
     viewportFraction: 0.87,
   );
@@ -50,12 +48,9 @@ class _HomePageState extends State<HomePage> {
   late int _selectedNavIndex = widget.initialIndex;
   int _activePromoIndex = 0;
   int _unreadNotificationCount = 0;
-  String _userName = 'Pengguna';
-  String _userRole = UserRoles.pembeli;
+  late String _userName = (AuthService().getSession()?['name'] ?? 'Pengguna').toString();
+  late String _userRole = UserRoles.normalize(AuthService().getSession()?['role']?.toString());
   String _userLocation = 'Mendeteksi lokasi...';
-  String? _profilePhotoPath;
-  Uint8List? _profilePhotoBytes;
-  bool _isUploadingProfilePhoto = false;
   bool _isSessionVerified = false;
   bool _isLoadingProperties = true;
   String? _propertyErrorMessage;
@@ -481,95 +476,30 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final resolvedRole = UserRoles.normalize(session['role']?.toString());
+    final resolvedName = (session['name'] ?? 'Pengguna').toString();
+    final resolvedVerified =
+        (session['sessionState'] ?? '').toString() == SessionState.verified;
+
     if (!mounted) return;
+
+    // Jika web dan role admin/staf, langsung redirect ke WebDashboardScaffold
+    // tanpa menunggu rebuild berikutnya supaya tidak sekilas tampil mobile view.
+    if (kIsWeb &&
+        (resolvedRole == UserRoles.admin || resolvedRole == UserRoles.staf)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      });
+      return;
+    }
+
     setState(() {
-      _userName = (session['name'] ?? 'Pengguna').toString();
-      _userRole = UserRoles.normalize(session['role']?.toString());
-      _profilePhotoPath = session['profilePhotoPath']?.toString();
-      _isSessionVerified =
-          (session['sessionState'] ?? '').toString() == SessionState.verified;
+      _userName = resolvedName;
+      _userRole = resolvedRole;
+      _isSessionVerified = resolvedVerified;
     });
   }
-
-  Future<void> _uploadProfilePhoto(XFile picked) async {
-    final previousBytes = _profilePhotoBytes;
-
-    if (!mounted) return;
-    setState(() => _isUploadingProfilePhoto = true);
-
-    try {
-      final response = await _authService.uploadProfilePhoto(picked);
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (!mounted) return;
-        setState(() => _profilePhotoBytes = previousBytes);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              (body['message'] ?? 'Upload foto profil gagal').toString(),
-            ),
-          ),
-        );
-        return;
-      }
-
-      final session = _authService.getSession();
-      if (!mounted) return;
-      setState(() {
-        _profilePhotoPath = session?['profilePhotoPath']?.toString();
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto profil berhasil diperbarui.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _profilePhotoBytes = previousBytes);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal mengunggah foto profil. Coba lagi.'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isUploadingProfilePhoto = false);
-      }
-    }
-  }
-
-  Widget _buildProfileAvatar() {
-    final profilePhotoUrl = _authService.resolveProfilePhotoUrl(
-      _profilePhotoPath,
-    );
-
-    if (_profilePhotoBytes != null) {
-      return Image.memory(_profilePhotoBytes!, fit: BoxFit.cover);
-    }
-
-    if (profilePhotoUrl != null) {
-      return Image.network(
-        profilePhotoUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset(
-          'assets/images/logo.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              const Icon(Icons.person_rounded, size: 42, color: Colors.white),
-        ),
-      );
-    }
-
-    return Image.asset(
-      'assets/images/logo.jpg',
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
-          const Icon(Icons.person_rounded, size: 42, color: Colors.white),
-    );
-  }
-
-  bool get _canChangeProfilePhoto =>
-      !_isUploadingProfilePhoto && _isSessionVerified;
 
   bool get _isMarketing => _userRole == UserRoles.staf;
   bool get _isAdmin => _userRole == UserRoles.admin;
@@ -620,77 +550,6 @@ class _HomePageState extends State<HomePage> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
     }
-  }
-
-  Future<void> _pickProfilePhoto(ImageSource source) async {
-    try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1200,
-      );
-
-      if (picked == null) return;
-
-      final bytes = await picked.readAsBytes();
-      if (!mounted) return;
-
-      setState(() => _profilePhotoBytes = bytes);
-      await _uploadProfilePhoto(picked);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengambil foto. Coba lagi.')),
-      );
-    }
-  }
-
-  void _logout() async {
-    await _authService.clearSession();
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
-  void _showPhotoSourceSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Ubah Foto Profil',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.photo_library_rounded),
-                  title: const Text('Pilih dari Galeri'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickProfilePhoto(ImageSource.gallery);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_camera_rounded),
-                  title: const Text('Ambil dari Kamera'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickProfilePhoto(ImageSource.camera);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _showFilterSheet() async {
@@ -1001,7 +860,7 @@ class _HomePageState extends State<HomePage> {
             child: Image.asset(
               'assets/images/logo.jpg',
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(Icons.home_work_rounded),
+              errorBuilder: (_, _, _) => const Icon(Icons.home_work_rounded),
             ),
           ),
         ),
@@ -1338,43 +1197,56 @@ class _HomePageState extends State<HomePage> {
         children: [
           // ── Hero Banner Card ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(
+                colors: [Color(0xFF5C1E04), Color(0xFF8F4E1E)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF502505), Color(0xFF7B3B0A)],
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF5C1E04).withOpacity(0.18),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Jelajah',
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 17,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
+                          height: 1.15,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 4),
                       Text(
-                        'Cari rumah, kos, dan ruko yang paling cocok untukmu.',
+                        'Temukan properti yang sesuai dengan kebutuhan Anda.',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
-                          fontSize: 12.5,
-                          height: 1.4,
+                          color: Color(0xD9FFFFFF),
+                          fontSize: 11.5,
+                          height: 1.3,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                const _ExploreIllustration(),
+                Icon(
+                  Icons.explore_rounded,
+                  size: 48,
+                  color: Colors.white.withOpacity(0.08),
+                ),
               ],
             ),
           ),
@@ -1458,14 +1330,17 @@ class _HomePageState extends State<HomePage> {
               height: 256,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: featured.length > 3 ? 3 : featured.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemCount: featured.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final property = featured[index];
-                  return _ExploreFeaturedPropertyCard(
-                    property: property,
-                    propertyService: _propertyService,
-                    onTap: () => _openPropertyDetail(property),
+                  return SizedBox(
+                    width: MediaQuery.sizeOf(context).width - 72,
+                    child: HomePromoCard(
+                      property: property,
+                      priceLabel: _propertyService.formatPrice(property.price),
+                      onTap: () => _openPropertyDetail(property),
+                    ),
                   );
                 },
               ),
@@ -1504,7 +1379,7 @@ class _HomePageState extends State<HomePage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: exploreItems.length > 4 ? 4 : exploreItems.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final property = exploreItems[index];
                 return _ExploreCompactPropertyCard(
@@ -1559,66 +1434,6 @@ class _ExploreSectionHeader extends StatelessWidget {
   }
 }
 
-class _ExploreCategoryChip extends StatelessWidget {
-  const _ExploreCategoryChip({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 76,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? accent : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? Colors.transparent : const Color(0xFFE3C9A7),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x10000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: selected ? Colors.white : accent, size: 22),
-            const SizedBox(height: 7),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: selected ? Colors.white : const Color(0xFF4B3828),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ExploreFeaturedPropertyCard extends StatelessWidget {
   const _ExploreFeaturedPropertyCard({
     required this.property,
@@ -1663,7 +1478,7 @@ class _ExploreFeaturedPropertyCard extends StatelessWidget {
                     child: Image.network(
                       _imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: const Color(0xFFF0E0CF),
                       ),
                     ),
@@ -1853,7 +1668,7 @@ class _ExploreCompactPropertyCard extends StatelessWidget {
                   child: Image.network(
                     _imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: const Color(0xFFF0E0CF),
                       child: const Icon(
                         Icons.image_not_supported_rounded,
@@ -1921,125 +1736,4 @@ class _ExploreCompactPropertyCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ExploreIllustration extends StatelessWidget {
-  const _ExploreIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 100,
-      height: 70,
-      child: CustomPaint(
-        painter: _ExploreIllustrationPainter(),
-      ),
-    );
-  }
-}
-
-class _ExploreIllustrationPainter extends CustomPainter {
-  const _ExploreIllustrationPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final decPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(w * 0.8, h * 0.5), 20, decPaint);
-    canvas.drawCircle(Offset(w * 0.3, h * 0.8), 12, decPaint);
-
-    // Clipboard outline (left side)
-    final bx = w * 0.15;
-    final by = h * 0.25;
-    final bw = w * 0.32;
-    final bh = h * 0.55;
-    final clipPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(bx, by, bw, bh), const Radius.circular(6)));
-    canvas.drawPath(clipPath, paint);
-
-    // Clipboard top clip
-    final clipTop = Path()
-      ..moveTo(bx + bw * 0.3, by)
-      ..lineTo(bx + bw * 0.3, by - 5)
-      ..lineTo(bx + bw * 0.7, by - 5)
-      ..lineTo(bx + bw * 0.7, by)
-      ..close();
-    canvas.drawPath(clipTop, paint..style = PaintingStyle.fill);
-
-    // Clipboard lines
-    paint.style = PaintingStyle.stroke;
-    for (int i = 0; i < 3; i++) {
-      canvas.drawLine(
-        Offset(bx + 4, by + 10 + i * 7.0),
-        Offset(bx + bw - 4, by + 10 + i * 7.0),
-        paint,
-      );
-    }
-
-    // Trend line inside clipboard
-    final trendPaint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
-    final tx = bx + 4.0;
-    final ty = by + bh - 8.0;
-    final trendPath = Path()
-      ..moveTo(tx, ty)
-      ..lineTo(tx + 6, ty - 6)
-      ..lineTo(tx + 11, ty - 3)
-      ..lineTo(tx + 18, ty - 11);
-    canvas.drawPath(trendPath, trendPaint);
-
-    // Calculator outline (right side)
-    final calcX = w * 0.58;
-    final calcY = h * 0.35;
-    final calcW = w * 0.28;
-    final calcH = h * 0.45;
-    final calcPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(calcX, calcY, calcW, calcH), const Radius.circular(5)));
-    canvas.drawPath(calcPath, paint..style = PaintingStyle.stroke);
-
-    // Calculator screen
-    canvas.drawRect(
-      Rect.fromLTWH(calcX + 3, calcY + 3, calcW - 6, 6),
-      paint..style = PaintingStyle.fill,
-    );
-
-    // Calculator buttons (grid)
-    final btnPaint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
-    for (int row = 0; row < 3; row++) {
-      for (int col = 0; col < 3; col++) {
-        canvas.drawRect(
-          Rect.fromLTWH(
-            calcX + 3 + col * 6.0,
-            calcY + 12 + row * 5.0,
-            4,
-            3,
-          ),
-          btnPaint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

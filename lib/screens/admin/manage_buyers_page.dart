@@ -264,7 +264,7 @@ class _ManageBuyersPageState extends State<ManageBuyersPage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: userBookings.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (ctx, idx) {
                       final b = userBookings[idx];
                       Color statusColor = Colors.grey;
@@ -543,7 +543,7 @@ class _ManageBuyersPageState extends State<ManageBuyersPage> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       itemCount: paginatedUsers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (ctx, idx) {
         final user = paginatedUsers[idx];
         final isSelected = _selectedUser?.id == user.id;
@@ -853,7 +853,7 @@ class _ManageBuyersPageState extends State<ManageBuyersPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: userBookings.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (ctx, idx) {
                 final b = userBookings[idx];
                 Color statusColor = Colors.grey;
@@ -1058,7 +1058,7 @@ class _ManageBuyersPageState extends State<ManageBuyersPage> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: paginatedUsers.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _UserCard(
                       user: paginatedUsers[i],
                       onTap: () => _showBuyerDetails(paginatedUsers[i]),
